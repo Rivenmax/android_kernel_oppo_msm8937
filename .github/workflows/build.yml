@@ -1,4 +1,4 @@
-name: Build A57 SukiSU v3.2.4 FULL RETRY
+name: Build A57 SukiSU v3.2.4 FULL MIRROR
 
 permissions:
   contents: write
@@ -33,32 +33,38 @@ jobs:
           echo "# CONFIG_DEBUG_INFO is not set" >> $DEFCONFIG
           sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' $DEFCONFIG || true
 
-      - name: Cache Clang AOSP 1.2GB
+      - name: Cache Clang FULL
         id: cache-clang
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-full-v324-retry
+          key: clang-r536225-mirror-v324
 
-      - name: Download Clang FULL 1.2GB RETRY
+      - name: Download Clang FULL - MIRROR (anti DNS fail)
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/clang
-          echo "Downloading Clang 1.2GB with retry..."
-          for i in 1 2 3 4 5; do
-            echo "Attempt $i..."
-            wget --tries=20 --timeout=60 --continue -O /tmp/clang.tar.gz https://android.googlesource.[STRIPPED 82 bytes].tar.gz && break
-            echo "Failed attempt $i, sleep 15s..."
-            sleep 15
-          done
-          tar -xzf /tmp/clang.tar.gz -C $HOME/clang
-          rm /tmp/clang.tar.gz
+          echo "Try mirror 1: LineageOS Github..."
+          if ! git clone https://github.[STRIPPED 66 bytes] --depth=1 $HOME/clang 2>&1; then
+            echo "Mirror 1 failed, try mirror 2: Proton Clang..."
+            rm -rf $HOME/clang
+            git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang || true
+          fi
+          # fallback kalau masih kosong, pake apt clang sebagai full juga
+          if [ ! -f $HOME/clang/bin/clang ]; then
+            echo "Mirror failed, fallback apt..."
+            sudo apt-get update -q
+            sudo apt-get install -y -q clang lld
+            mkdir -p $HOME/clang/bin
+            ln -sf /usr/bin/clang $HOME/clang/bin/clang || true
+            ln -sf /usr/bin/ld.lld $HOME/clang/bin/ld.lld || true
+          fi
 
       - name: Setup Toolchains + PATH
         run: |
-          sudo apt-get update -q
           sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
           echo "$HOME/clang/bin" >> $GITHUB_PATH
+          $HOME/clang/bin/clang --version || clang --version
 
       - name: Build Kernel v3.2.4 FULL
         run: |
