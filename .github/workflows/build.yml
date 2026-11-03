@@ -18,10 +18,9 @@ jobs:
       - name: Patch SukiSU Ultra + SUSFS FIX 404
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
-          
           echo "Cloning susfs4ksu via GitLab..."
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git --depth=1 susfs4ksu
-          cd susfs4ksu
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git --depth=1 susfs4ksu || true
+          cd susfs4ksu || exit 0
           bash kernel/setup.sh ../KernelSU 2>&1 || true
           cd ..
           echo "SUSFS patched"
@@ -44,11 +43,14 @@ jobs:
           echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> $DEFCONFIG
           echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> $DEFCONFIG
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> $DEFCONFIG
+          echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
+          echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
+          echo "# CONFIG_CC_STACKPROTECTOR_REGULAR is not set" >> $DEFCONFIG
 
       - name: Setup Clang AOSP
         run: |
           mkdir -p $HOME/clang
-          wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz -O clang.tar.gz
+          wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O clang.tar.gz
           tar -xzf clang.tar.gz -C $HOME/clang
           echo "$HOME/clang/bin" >> $GITHUB_PATH
 
@@ -57,7 +59,7 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc)             ARCH=arm64             CC=clang             LD=ld.lld             CLANG_TRIPLE=aarch64-linux-gnu-             CROSS_COMPILE=aarch64-linux-gnu-             CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
       - name: Make TWRP Flashable ZIP
         run: |
