@@ -17,10 +17,8 @@ jobs:
 
       - name: Patch SukiSU Ultra + SUSFS FIX 404
         run: |
-          # 1. SukiSU Ultra main
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
           
-          # 2. SUSFS via GitLab (anti error Username tadi)
           echo "Cloning susfs4ksu via GitLab..."
           git clone https://gitlab.com/simonpunk/susfs4ksu.git --depth=1 susfs4ksu
           cd susfs4ksu
@@ -39,7 +37,6 @@ jobs:
           echo "CONFIG_KPM=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
-          # SUSFS configs - ini yang bikin Play Protect jadi Disertifikasi
           echo "CONFIG_KSU_SUSFS=y" >> $DEFCONFIG
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> $DEFCONFIG
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> $DEFCONFIG
@@ -67,7 +64,6 @@ jobs:
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
-          # Ganti test-keys jadi release-keys
           sed -i 's/test-keys/release-keys/g' anykernel.sh 2>/dev/null || true
           zip -r9 ../SukiSU-A57-SUSFS-FIXED-TWRP.zip * -x .git README.md *placeholder
           cd ..
