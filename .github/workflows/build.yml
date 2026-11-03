@@ -1,4 +1,4 @@
-name: Build A57 SukiSU v3.2.4 FULL
+name: Build A57 SukiSU v3.2.4 FULL RETRY
 
 permissions:
   contents: write
@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: lineage-21
           fetch-depth: 0
@@ -31,22 +31,26 @@ jobs:
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
           echo "# CONFIG_DEBUG_INFO is not set" >> $DEFCONFIG
-          echo "# CONFIG_DEBUG_INFO_BTF is not set" >> $DEFCONFIG
           sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' $DEFCONFIG || true
 
       - name: Cache Clang AOSP 1.2GB
         id: cache-clang
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-full-v324
+          key: clang-r536225-full-v324-retry
 
-      - name: Download Clang FULL 1.2GB
+      - name: Download Clang FULL 1.2GB RETRY
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/clang
-          echo "Downloading Clang 1.2GB (cuma sekali)..."
-          wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O /tmp/clang.tar.gz
+          echo "Downloading Clang 1.2GB with retry..."
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i..."
+            wget --tries=20 --timeout=60 --continue -O /tmp/clang.tar.gz https://android.googlesource.[STRIPPED 82 bytes].tar.gz && break
+            echo "Failed attempt $i, sleep 15s..."
+            sleep 15
+          done
           tar -xzf /tmp/clang.tar.gz -C $HOME/clang
           rm /tmp/clang.tar.gz
 
@@ -60,21 +64,21 @@ jobs:
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -fno-asynchronous-unwind-tables"
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0"
 
-      - name: Make 【entity-TWRP¦canonical_name=TWRP】 ZIP v3.2.4 FULL
+      - name: Make TWRP ZIP v3.2.4 FULL
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
           sed -i 's/test-keys/release-keys/g' anykernel.sh
-          zip -r9 ../A57-SUKISU-v3.2.4-FULL-【entity-TWRP¦canonical_name=TWRP】.zip * -x .git README.md *placeholder
+          zip -r9 ../A57-SUKISU-v3.2.4-FULL-TWRP.zip * -x .git README.md *placeholder
           cd ..
 
       - name: Upload v3.2.4 FULL
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: A57-SUKISU-v3.2.4-FULL
           path: |
-            A57-SUKISU-v3.2.4-FULL-【entity-TWRP¦canonical_name=TWRP】.zip
+            A57-SUKISU-v3.2.4-FULL-TWRP.zip
             out/arch/arm64/boot/Image.gz-dtb
