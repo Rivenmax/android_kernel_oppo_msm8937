@@ -1,56 +1,66 @@
-name: Build Kernel
+name: Build SukiSU A57 FINAL
+
+permissions:
+  contents: write
+
 on:
-  push:
   workflow_dispatch:
+
 jobs:
-  Build:
-    name: Build Kernel
+  build:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        defconfig:
-          - lineageos_R9s_defconfig
     steps:
-      - name: Set builddate
-        id: generate-builddate
-        run: echo "BUILDDATE=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-      - name: Set swap to 10G
-        uses: pierotofy/set-swap-space@master
+      - uses: actions/checkout@v4
         with:
-          swap-size-gb: 10
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          path: kernel
-      - name: ⭐ Install prerequisites
+          ref: lineage-21
+          fetch-depth: 0
+
+      - name: Patch SukiSU Ultra + SUSFS
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl git ftp lftp wget libarchive-tools ccache python2 python2-dev python3
-          sudo apt-get install -y pngcrush schedtool dpkg-dev liblz4-tool make optipng maven device-tree-compiler
-          sudo apt-get install -y libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc
-          sudo apt-get install -y libxml2-utils libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools lzop flex tree
-          sudo apt-get install -y build-essential bc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev libfl-dev
-          sudo apt-get install -y pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl
-          sudo apt-get install -y zip unzip tar gzip bzip2 rar unrar llvm g++-multilib bison gperf zlib1g-dev automake
-          
-      - name: Get build tools
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+          cd KernelSU
+          curl -LSs "https://raw.githubusercontent.com/sidex15/susfs4ksu/main/kernel/setup.sh" | bash -s susfs-main
+          cd ..
+
+      - name: Set Defconfig
         run: |
-          wget https://github.com/ZyCromerZ/Clang/releases/download/13.0.1-20230207-release/Clang-13.0.1-20230207.tar.gz
-          mkdir zyc13
-          tar zxvf "Clang-13.0.1-20230207.tar.gz" -C zyc13
+          DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
+          if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
+          echo "CONFIG_KSU=y" >> $DEFCONFIG
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> $DEFCONFIG
+          echo "CONFIG_KPM=y" >> $DEFCONFIG
+          echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
+          echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
+          echo "CONFIG_KSU_SUSFS=y" >> $DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> $DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> $DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> $DEFCONFIG
+
+      - name: Setup Clang
+        run: |
+          mkdir -p $HOME/clang
+          wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O clang.tar.gz
+          tar -xzf clang.tar.gz -C $HOME/clang
+          echo "$HOME/clang/bin" >> $GITHUB_PATH
+
       - name: Build Kernel
-        working-directory: kernel
         run: |
-          PATH=$GITHUB_WORKSPACE/zyc13/bin:$PATH
-          make O=out ARCH=arm64 CC=clang CLANG_TRIBLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CROSS_COMPILE_COMPAT=arm-linux-gnueabi- ${{matrix.defconfig}}
-          make O=out ARCH=arm64 CC=clang CLANG_TRIBLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CROSS_COMPILE_COMPAT=arm-linux-gnueabi- -j$(nproc) 
-      - name: Bundle
-        working-directory: kernel
+          export ARCH=arm64
+          make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+
+      - name: Make TWRP ZIP
         run: |
-          zip -q -r "unpatch-${{ matrix.defconfig }}.zip" ./out/arch/arm64/boot/*
-      - name: Upload to release
-        uses: softprops/action-gh-release@v2
+          git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
+          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          cd AnyKernel3
+          zip -r9 ../SukiSU-A57-FIXED-TWRP.zip * -x .git README.md *placeholder
+          cd ..
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: r${{ github.run_number }}-${{ steps.generate-builddate.outputs.BUILDDATE }}
-          files: ./kernel/unpatch-${{ matrix.defconfig }}.zip
+          name: SukiSU-A57-FIXED
+          path: |
+            SukiSU-A57-FIXED-TWRP.zip
+            out/arch/arm64/boot/Image.gz-dtb
