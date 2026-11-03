@@ -1,4 +1,4 @@
-name: Build SukiSU A57 FAST ONLY FIX DWARF
+name: Build SukiSU A57 FINAL FIX
 
 permissions:
   contents: write
@@ -15,14 +15,16 @@ jobs:
           ref: lineage-21
           fetch-depth: 0
 
-      - name: Patch SukiSU Ultra ONLY
+      - name: Patch SukiSU Ultra for 4.9.337
         run: |
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
+          # SukiSU Ultra main sekarang buat 5.10+ GKI, buat 4.9 pake tag lama
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.1.7 || bash -s v3.1.5
 
       - name: Set Defconfig A57
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
           if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
+          echo "Using $DEFCONFIG"
           echo "CONFIG_KSU=y" >> $DEFCONFIG
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> $DEFCONFIG
           echo "CONFIG_KPM=y" >> $DEFCONFIG
@@ -30,6 +32,7 @@ jobs:
           echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
+          echo "# CONFIG_CC_STACKPROTECTOR_REGULAR is not set" >> $DEFCONFIG
           echo "# CONFIG_DEBUG_INFO is not set" >> $DEFCONFIG
           echo "# CONFIG_DEBUG_INFO_DWARF4 is not set" >> $DEFCONFIG
           echo "# CONFIG_DEBUG_INFO_BTF is not set" >> $DEFCONFIG
@@ -44,15 +47,18 @@ jobs:
       - name: Build Kernel A57
         run: |
           export ARCH=arm64
+          export SUBARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -fno-asynchronous-unwind-tables -fno-unwind-tables"
+          # pake -j1 dulu biar error keliatan jelas, kalau udah ijo ganti jadi -j$(nproc)
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -fno-asynchronous-unwind-tables" 2>&1 | tee build.log || (echo "---- LAST 200 LINES ERROR ----" && tail -n 300 build.log && exit 1)
 
-      - name: Make TWRP ZIP
+      - name: Make 【entity-TWRP¦canonical_name=TWRP】 ZIP
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
-          zip -r9 ../SukiSU-A57-FAST-TWRP.zip * -x .git README.md *placeholder
+          sed -i 's/test-keys/release-keys/g' anykernel.sh 2>/dev/null || true
+          zip -r9 ../SukiSU-A57-FAST-【entity-TWRP¦canonical_name=TWRP】.zip * -x .git README.md *placeholder
           cd ..
 
       - name: Upload FAST
@@ -60,5 +66,5 @@ jobs:
         with:
           name: SukiSU-A57-FAST
           path: |
-            SukiSU-A57-FAST-TWRP.zip
+            SukiSU-A57-FAST-【entity-TWRP¦canonical_name=TWRP】.zip
             out/arch/arm64/boot/Image.gz-dtb
