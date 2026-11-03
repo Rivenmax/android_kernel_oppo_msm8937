@@ -1,4 +1,4 @@
-name: Build SukiSU A57 FAST ONLY FIX
+name: Build SukiSU A57 FAST ONLY FIX DWARF
 
 permissions:
   contents: write
@@ -30,6 +30,11 @@ jobs:
           echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
+          echo "# CONFIG_DEBUG_INFO is not set" >> $DEFCONFIG
+          echo "# CONFIG_DEBUG_INFO_DWARF4 is not set" >> $DEFCONFIG
+          echo "# CONFIG_DEBUG_INFO_BTF is not set" >> $DEFCONFIG
+          echo "# CONFIG_GDB_SCRIPTS is not set" >> $DEFCONFIG
+          sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' $DEFCONFIG || true
 
       - name: Setup Clang FAST
         run: |
@@ -40,7 +45,7 @@ jobs:
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -fno-asynchronous-unwind-tables -fno-unwind-tables"
 
       - name: Make TWRP ZIP
         run: |
