@@ -1,4 +1,4 @@
-name: Build SukiSU A57 FINAL + SUSFS
+name: Build SukiSU A57 DUAL - FAST + FULL FIX
 
 permissions:
   contents: write
@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        variant: [FAST, FULL]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,12 +42,34 @@ jobs:
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
 
+      - name: Cache Clang FULL
+        if: matrix.variant == 'FULL'
+        id: cache-clang
+        uses: actions/cache@v4
+        with:
+          path: ~/clang
+          key: clang-r536225-full
+
       - name: Setup Clang FAST
+        if: matrix.variant == 'FAST'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y -q clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
 
-      - name: Build Kernel A57
+      - name: Setup Clang FULL
+        if: matrix.variant == 'FULL'
+        run: |
+          if [ "${{ steps.cache-clang.outputs.cache-hit }}" != "true" ]; then
+            mkdir -p $HOME/clang
+            wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O /tmp/clang.tar.gz
+            tar -xzf /tmp/clang.tar.gz -C $HOME/clang
+            rm /tmp/clang.tar.gz
+          fi
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi
+          echo "$HOME/clang/bin" >> $GITHUB_PATH
+
+      - name: Build Kernel
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -55,13 +80,13 @@ jobs:
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
-          zip -r9 ../SukiSU-A57-SUSFS-FIXED-TWRP.zip * -x .git README.md *placeholder
+          zip -r9 ../SukiSU-A57-${{ matrix.variant }}-TWRP.zip * -x .git README.md *placeholder
           cd ..
 
-      - name: Upload Artifact
+      - name: Upload ${{ matrix.variant }}
         uses: actions/upload-artifact@v4
         with:
-          name: SukiSU-A57-SUSFS-FIXED
+          name: SukiSU-A57-${{ matrix.variant }}
           path: |
-            SukiSU-A57-SUSFS-FIXED-TWRP.zip
+            SukiSU-A57-${{ matrix.variant }}-TWRP.zip
             out/arch/arm64/boot/Image.gz-dtb
