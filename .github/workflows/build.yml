@@ -1,4 +1,4 @@
-name: Build A57 KSU FIX
+name: Build A57 SukiSU v3.2.4 FULL
 
 permissions:
   contents: write
@@ -15,16 +15,16 @@ jobs:
           ref: lineage-21
           fetch-depth: 0
 
-      - name: Patch KernelSU 4.9
+      - name: Patch SukiSU Ultra v3.2.4 FULL
         run: |
-          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: Set Defconfig KSU
+      - name: Set Defconfig v3.2.4 FULL
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
           if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
           echo "CONFIG_KSU=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_DEBUG=n" >> $DEFCONFIG
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> $DEFCONFIG
           echo "CONFIG_KPM=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
@@ -34,30 +34,47 @@ jobs:
           echo "# CONFIG_DEBUG_INFO_BTF is not set" >> $DEFCONFIG
           sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' $DEFCONFIG || true
 
-      - name: Setup Clang FAST
+      - name: Cache Clang AOSP 1.2GB
+        id: cache-clang
+        uses: actions/cache@v4
+        with:
+          path: ~/clang
+          key: clang-r536225-full-v324
+
+      - name: Download Clang FULL 1.2GB
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p $HOME/clang
+          echo "Downloading Clang 1.2GB (cuma sekali)..."
+          wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O /tmp/clang.tar.gz
+          tar -xzf /tmp/clang.tar.gz -C $HOME/clang
+          rm /tmp/clang.tar.gz
+
+      - name: Setup Toolchains + PATH
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
+          sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
+          echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-      - name: Build Kernel KSU
+      - name: Build Kernel v3.2.4 FULL
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0"
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -fno-asynchronous-unwind-tables"
 
-      - name: Make TWRP ZIP
+      - name: Make 【entity-TWRP¦canonical_name=TWRP】 ZIP v3.2.4 FULL
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
           sed -i 's/test-keys/release-keys/g' anykernel.sh
-          zip -r9 ../A57-KSU-FIXED-TWRP.zip * -x .git README.md *placeholder
+          zip -r9 ../A57-SUKISU-v3.2.4-FULL-【entity-TWRP¦canonical_name=TWRP】.zip * -x .git README.md *placeholder
           cd ..
 
-      - name: Upload KSU
+      - name: Upload v3.2.4 FULL
         uses: actions/upload-artifact@v4
         with:
-          name: A57-KSU-FIXED
+          name: A57-SUKISU-v3.2.4-FULL
           path: |
-            A57-KSU-FIXED-TWRP.zip
+            A57-SUKISU-v3.2.4-FULL-【entity-TWRP¦canonical_name=TWRP】.zip
             out/arch/arm64/boot/Image.gz-dtb
