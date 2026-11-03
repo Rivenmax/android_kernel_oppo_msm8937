@@ -1,4 +1,4 @@
-name: Build SukiSU A57 DUAL - FAST + FULL FIX
+name: Build SukiSU A57 FAST ONLY FIX
 
 permissions:
   contents: write
@@ -9,24 +9,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        variant: [FAST, FULL]
     steps:
       - uses: actions/checkout@v4
         with:
           ref: lineage-21
           fetch-depth: 0
 
-      - name: Patch SukiSU Ultra + SUSFS
+      - name: Patch SukiSU Ultra ONLY
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git --depth=1 susfs4ksu || true
-          cd susfs4ksu || exit 0
-          bash kernel/setup.sh ../KernelSU 2>&1 || true
-          cd ..
 
-      - name: Set Defconfig A57 + SUSFS
+      - name: Set Defconfig A57
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
           if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
@@ -35,41 +28,15 @@ jobs:
           echo "CONFIG_KPM=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> $DEFCONFIG
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
 
-      - name: Cache Clang FULL
-        if: matrix.variant == 'FULL'
-        id: cache-clang
-        uses: actions/cache@v4
-        with:
-          path: ~/clang
-          key: clang-r536225-full
-
       - name: Setup Clang FAST
-        if: matrix.variant == 'FAST'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
 
-      - name: Setup Clang FULL
-        if: matrix.variant == 'FULL'
-        run: |
-          if [ "${{ steps.cache-clang.outputs.cache-hit }}" != "true" ]; then
-            mkdir -p $HOME/clang
-            wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O /tmp/clang.tar.gz
-            tar -xzf /tmp/clang.tar.gz -C $HOME/clang
-            rm /tmp/clang.tar.gz
-          fi
-          sudo apt-get update -q
-          sudo apt-get install -y -q gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi
-          echo "$HOME/clang/bin" >> $GITHUB_PATH
-
-      - name: Build Kernel
+      - name: Build Kernel A57
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -80,13 +47,13 @@ jobs:
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
-          zip -r9 ../SukiSU-A57-${{ matrix.variant }}-TWRP.zip * -x .git README.md *placeholder
+          zip -r9 ../SukiSU-A57-FAST-TWRP.zip * -x .git README.md *placeholder
           cd ..
 
-      - name: Upload ${{ matrix.variant }}
+      - name: Upload FAST
         uses: actions/upload-artifact@v4
         with:
-          name: SukiSU-A57-${{ matrix.variant }}
+          name: SukiSU-A57-FAST
           path: |
-            SukiSU-A57-${{ matrix.variant }}-TWRP.zip
+            SukiSU-A57-FAST-TWRP.zip
             out/arch/arm64/boot/Image.gz-dtb
