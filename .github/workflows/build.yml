@@ -15,23 +15,19 @@ jobs:
           ref: lineage-21
           fetch-depth: 0
 
-      - name: Patch SukiSU Ultra + SUSFS FIX 404
+      - name: Patch SukiSU Ultra + SUSFS
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
-          echo "Cloning susfs4ksu via GitLab..."
           git clone https://gitlab.com/simonpunk/susfs4ksu.git --depth=1 susfs4ksu || true
           cd susfs4ksu || exit 0
           bash kernel/setup.sh ../KernelSU 2>&1 || true
           cd ..
-          echo "SUSFS patched"
 
       - name: Set Defconfig A57 + SUSFS
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
           if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
-          echo "Using defconfig: $DEFCONFIG"
           echo "CONFIG_KSU=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_KPROBES_HOOK=n" >> $DEFCONFIG
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> $DEFCONFIG
           echo "CONFIG_KPM=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
@@ -40,37 +36,29 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> $DEFCONFIG
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> $DEFCONFIG
           echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> $DEFCONFIG
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
           echo "# CONFIG_CC_STACKPROTECTOR_STRONG is not set" >> $DEFCONFIG
-          echo "# CONFIG_CC_STACKPROTECTOR_REGULAR is not set" >> $DEFCONFIG
 
-      - name: Setup Clang AOSP
+      - name: Setup Clang FAST
         run: |
-          mkdir -p $HOME/clang
-          wget -q https://android.googlesource.[STRIPPED 82 bytes].tar.gz -O clang.tar.gz
-          tar -xzf clang.tar.gz -C $HOME/clang
-          echo "$HOME/clang/bin" >> $GITHUB_PATH
+          sudo apt-get update -q
+          sudo apt-get install -y -q clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
       - name: Build Kernel A57
         run: |
           export ARCH=arm64
-          export SUBARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
           make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
-      - name: Make TWRP Flashable ZIP
+      - name: Make TWRP ZIP
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
-          sed -i 's/test-keys/release-keys/g' anykernel.sh 2>/dev/null || true
           zip -r9 ../SukiSU-A57-SUSFS-FIXED-TWRP.zip * -x .git README.md *placeholder
           cd ..
 
-      - name: Upload Artifact ANTI 403
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SukiSU-A57-SUSFS-FIXED
