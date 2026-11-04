@@ -18,7 +18,7 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 12.09
+      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 12.21
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
@@ -31,6 +31,9 @@ jobs:
           void ksu_syscall_table_unhook(int nr, syscall_fn_t *old);
           void ksu_syscall_table_hook_init(void);
           void ksu_syscall_hook_init(void);
+          void ksu_register_syscall_hook(int nr, void *fn);
+          void ksu_unregister_syscall_hook(int nr);
+          void ksu_syscall_hook_exit(void);
           #endif
           EOF
           mkdir -p include/linux
@@ -46,6 +49,10 @@ jobs:
           obj-y += fs_hook.o
           obj-y += syscall_hook.o
           EOF
+          cat > drivers/kernelsu/hook/Kbuild << 'EOF'
+          obj-y += fs_hook.o
+          obj-y += syscall_hook.o
+          EOF
           cat > drivers/kernelsu/hook/syscall_hook.c << 'EOF'
           #include "syscall_hook.h"
           #include <linux/ptrace.h>
@@ -53,10 +60,18 @@ jobs:
           void ksu_syscall_table_hook_init(void) {}
           void ksu_syscall_table_hook(int nr, syscall_fn_t fn, syscall_fn_t *old) {}
           void ksu_syscall_table_unhook(int nr, syscall_fn_t *old) {}
+          void ksu_register_syscall_hook(int nr, void *fn) {}
+          void ksu_unregister_syscall_hook(int nr) {}
+          void ksu_syscall_hook_exit(void) {}
+          long ksu_hook_setresuid(const struct pt_regs *regs) { return 0; }
+          long ksu_hook_setuid(const struct pt_regs *regs) { return 0; }
+          long ksu_hook_setgid(const struct pt_regs *regs) { return 0; }
+          long ksu_hook_setresgid(const struct pt_regs *regs) { return 0; }
           EOF
           echo "/* fs only */" > drivers/kernelsu/hook/lsm_hook.c
           echo "/* fs only */" > drivers/kernelsu/hook/setuid_hook.c
           echo "/* fs only */" > drivers/kernelsu/hook/syscall_event_bridge.c
+          echo "/* fs only */" > drivers/kernelsu/hook/syscall_hook_manager.c
 
       - name: Set Defconfig 3.2.4 JADI
         run: |
@@ -77,7 +92,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-jadi-foto1209
+          key: clang-324-jadi-foto1221
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
