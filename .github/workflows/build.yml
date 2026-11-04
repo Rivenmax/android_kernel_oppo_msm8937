@@ -18,7 +18,7 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 12.21
+      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 12.33
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
@@ -42,6 +42,22 @@ jobs:
           mkdir -p include/linux/sched
           echo "#include <linux/sched.h>" > include/linux/sched/task_stack.h
           echo "#include <linux/sched.h>" > include/linux/sched/signal.h
+          echo "#include <linux/sched.h>" > include/linux/sched/task.h
+          echo "#include <linux/sched.h>" > include/linux/sched/mm.h
+          sed -i '/lsm_hook/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/lsm_hook/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          sed -i '/setuid_hook/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/setuid_hook/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          sed -i '/syscall_event_bridge/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/syscall_event_bridge/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          sed -i '/syscall_hook_manager/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/syscall_hook_manager/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          sed -i '/tp_marker/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/tp_marker/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          sed -i '/sucompat/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/sucompat/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          sed -i '/sulog/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/sulog/d' drivers/kernelsu/Makefile 2>/dev/null || true
           rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
           echo "/* disabled */" > drivers/kernelsu/feature/sucompat.c
           echo "/* disabled */" > drivers/kernelsu/feature/sulog.c
@@ -64,14 +80,12 @@ jobs:
           void ksu_unregister_syscall_hook(int nr) {}
           void ksu_syscall_hook_exit(void) {}
           long ksu_hook_setresuid(const struct pt_regs *regs) { return 0; }
-          long ksu_hook_setuid(const struct pt_regs *regs) { return 0; }
-          long ksu_hook_setgid(const struct pt_regs *regs) { return 0; }
-          long ksu_hook_setresgid(const struct pt_regs *regs) { return 0; }
           EOF
-          echo "/* fs only */" > drivers/kernelsu/hook/lsm_hook.c
-          echo "/* fs only */" > drivers/kernelsu/hook/setuid_hook.c
-          echo "/* fs only */" > drivers/kernelsu/hook/syscall_event_bridge.c
-          echo "/* fs only */" > drivers/kernelsu/hook/syscall_hook_manager.c
+          echo "/* disabled */" > drivers/kernelsu/hook/lsm_hook.c
+          echo "/* disabled */" > drivers/kernelsu/hook/setuid_hook.c
+          echo "/* disabled */" > drivers/kernelsu/hook/syscall_event_bridge.c
+          echo "/* disabled */" > drivers/kernelsu/hook/syscall_hook_manager.c
+          echo "/* disabled */" > drivers/kernelsu/hook/tp_marker.c
 
       - name: Set Defconfig 3.2.4 JADI
         run: |
@@ -92,7 +106,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-jadi-foto1221
+          key: clang-324-jadi-foto1233
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
