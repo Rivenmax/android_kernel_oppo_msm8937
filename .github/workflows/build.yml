@@ -18,7 +18,7 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: BABAT infra + extension + runtime - FIX FOTO 21.38
+      - name: BABAT infra + extension + runtime + selinux - FIX FOTO 22.00
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           for f in drivers/kernelsu/infra/*.c; do echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
@@ -35,11 +35,18 @@ jobs:
           cat > drivers/kernelsu/extension/Kbuild << 'EOF'
           obj-y :=
           EOF
-          for f in drivers/kernelsu/runtime/*.c; do echo "/* disabled - copy_from_user_nofault 5.10+ */ #include <linux/kernel.h>" > "$f"; done
+          for f in drivers/kernelsu/runtime/*.c; do echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
           cat > drivers/kernelsu/runtime/Makefile << 'EOF'
           obj-y :=
           EOF
           cat > drivers/kernelsu/runtime/Kbuild << 'EOF'
+          obj-y :=
+          EOF
+          for f in drivers/kernelsu/selinux/*.c; do echo "/* disabled - selinux_inode 5.x+ */ #include <linux/kernel.h>" > "$f"; done
+          cat > drivers/kernelsu/selinux/Makefile << 'EOF'
+          obj-y :=
+          EOF
+          cat > drivers/kernelsu/selinux/Kbuild << 'EOF'
           obj-y :=
           EOF
           cat > drivers/kernelsu/manager/pkg_observer.c << 'EOF'
@@ -152,7 +159,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-foto2138
+          key: clang-324-foto2200
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
