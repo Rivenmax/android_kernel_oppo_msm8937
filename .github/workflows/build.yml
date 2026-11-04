@@ -18,10 +18,9 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: 1x JADI - ALL FIX 07.42-12.45 buat 4.9.337 A57
+      - name: 1x JADI - FIX FOTO 14.47
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -37,7 +36,6 @@ jobs:
           void ksu_syscall_hook_exit(void);
           #endif
           EOF
-          
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
           printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
@@ -46,7 +44,6 @@ jobs:
           echo "#include <linux/sched.h>" > include/linux/sched/signal.h
           echo "#include <linux/sched.h>" > include/linux/sched/task.h
           echo "#include <linux/sched.h>" > include/linux/sched/mm.h
-          
           sed -i '/lsm_hook/d' drivers/kernelsu/Kbuild 2>/dev/null || true
           sed -i '/lsm_hook/d' drivers/kernelsu/Makefile 2>/dev/null || true
           sed -i '/setuid_hook/d' drivers/kernelsu/Kbuild 2>/dev/null || true
@@ -61,21 +58,20 @@ jobs:
           sed -i '/sucompat/d' drivers/kernelsu/Makefile 2>/dev/null || true
           sed -i '/sulog/d' drivers/kernelsu/Kbuild 2>/dev/null || true
           sed -i '/sulog/d' drivers/kernelsu/Makefile 2>/dev/null || true
-          sed -i '/patch_memory/d' drivers/kernelsu/Kbuild 2>/dev/null || true
-          sed -i '/patch_memory/d' drivers/kernelsu/Makefile 2>/dev/null || true
-          
+          cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
+          /* 3.2.4 arm64/syscall_hook disabled for 4.9 - ksu_syscall_hook_fn GKI only */
+          #include <linux/kernel.h>
+          EOF
           cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
-          /* 3.2.4 disabled for 4.9.337 - p4d_t not exist in 4.9, introduced in 4.12 */
+          /* 3.2.4 patch_memory disabled for 4.9 - p4d_t not exist */
           #include <linux/kernel.h>
           #include <linux/mm.h>
           void ksu_patch_memory(void *addr, void *data, size_t len) {}
           void ksu_memory_patch_init(void) {}
           EOF
-          
           rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sucompat.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sulog.c
-          
+          echo "/* disabled */" > drivers/kernelsu/feature/sucompat.c
+          echo "/* disabled */" > drivers/kernelsu/feature/sulog.c
           cat > drivers/kernelsu/hook/Makefile << 'EOF'
           obj-y += fs_hook.o
           obj-y += syscall_hook.o
@@ -92,7 +88,6 @@ jobs:
           cat > drivers/kernelsu/hook/arm64/Kbuild << 'EOF'
           obj-y += patch_memory.o
           EOF
-          
           cat > drivers/kernelsu/hook/syscall_hook.c << 'EOF'
           #include "syscall_hook.h"
           #include <linux/ptrace.h>
@@ -105,12 +100,11 @@ jobs:
           void ksu_syscall_hook_exit(void) {}
           long ksu_hook_setresuid(const struct pt_regs *regs) { return 0; }
           EOF
-          
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/hook/lsm_hook.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/hook/setuid_hook.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/hook/syscall_event_bridge.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/hook/syscall_hook_manager.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/hook/tp_marker.c
+          echo "/* disabled */" > drivers/kernelsu/hook/lsm_hook.c
+          echo "/* disabled */" > drivers/kernelsu/hook/setuid_hook.c
+          echo "/* disabled */" > drivers/kernelsu/hook/syscall_event_bridge.c
+          echo "/* disabled */" > drivers/kernelsu/hook/syscall_hook_manager.c
+          echo "/* disabled */" > drivers/kernelsu/hook/tp_marker.c
 
       - name: Set Defconfig
         run: |
@@ -131,7 +125,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-1x-jadi
+          key: clang-324-foto1447
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
@@ -145,7 +139,7 @@ jobs:
           sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
           echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-      - name: Build Kernel 3.2.4 1x JADI
+      - name: Build Kernel 3.2.4
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
