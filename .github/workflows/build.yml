@@ -19,13 +19,13 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: Set Defconfig v3.2.4 FULL
+      - name: Set Defconfig v3.2.4 FULL FIX
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
           if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
           echo "CONFIG_KSU=y" >> $DEFCONFIG
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> $DEFCONFIG
-          echo "CONFIG_KPM=y" >> $DEFCONFIG
+          echo "# CONFIG_KPM is not set" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
           echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
           echo "CONFIG_CC_STACKPROTECTOR_NONE=y" >> $DEFCONFIG
@@ -38,30 +38,22 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-mirror-v324
+          key: clang-r536225-mirror-v324-fix
 
-      - name: Download Clang FULL - MIRROR (anti DNS fail)
+      - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/clang
-          echo "Try mirror 1: LineageOS Github..."
+          echo "Mirror 1: LineageOS 【entity-Github¦canonical_name=Github】 (anti DNS fail foto 00.41)"
           if ! git clone https://github.[STRIPPED 66 bytes] --depth=1 $HOME/clang 2>&1; then
-            echo "Mirror 1 failed, try mirror 2: Proton Clang..."
+            echo "Mirror 1 failed, Mirror 2: 【entity-Proton¦canonical_name=Proton】"
             rm -rf $HOME/clang
-            git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang || true
-          fi
-          # fallback kalau masih kosong, pake apt clang sebagai full juga
-          if [ ! -f $HOME/clang/bin/clang ]; then
-            echo "Mirror failed, fallback apt..."
-            sudo apt-get update -q
-            sudo apt-get install -y -q clang lld
-            mkdir -p $HOME/clang/bin
-            ln -sf /usr/bin/clang $HOME/clang/bin/clang || true
-            ln -sf /usr/bin/ld.lld $HOME/clang/bin/ld.lld || true
+            git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang
           fi
 
       - name: Setup Toolchains + PATH
         run: |
+          sudo apt-get update -q
           sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
           echo "$HOME/clang/bin" >> $GITHUB_PATH
           $HOME/clang/bin/clang --version || clang --version
@@ -70,7 +62,7 @@ jobs:
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0"
+          make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0" 2>&1 | tee build.log || ( tail -n 300 build.log && exit 2 )
 
       - name: Make TWRP ZIP v3.2.4 FULL
         run: |
