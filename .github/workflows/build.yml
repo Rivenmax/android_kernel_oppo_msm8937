@@ -26,8 +26,13 @@ jobs:
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
           printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
-          sed -i 's|obj-y += sulog.o|# obj-y += sulog.o|' drivers/kernelsu/feature/Makefile || true
-          sed -i 's|obj-y += sucompat.o|# obj-y += sucompat.o|' drivers/kernelsu/feature/Makefile || true
+          mkdir -p include/linux/sched
+          echo "#include <linux/sched.h>" > include/linux/sched/task_stack.h
+          rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
+          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sucompat.c
+          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sulog.c
+          sed -i '/sucompat/d' drivers/kernelsu/Kbuild 2>/dev/null || true
+          sed -i '/sulog/d' drivers/kernelsu/Kbuild 2>/dev/null || true
 
       - name: Set Defconfig v3.2.4 FULL FIX
         run: |
@@ -48,7 +53,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-mirror-v324-patched3
+          key: clang-r536225-mirror-v324-patched4
 
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
