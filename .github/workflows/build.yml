@@ -19,6 +19,14 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
+      - name: FIX v3.2.4 for Kernel 4.9.337 A57
+        run: |
+          echo "Fix syscall_fn_t unknown type..."
+          sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
+          sed -i 's/syscall_fn_t/void */g' drivers/kernelsu/hook/syscall_hook.h || true
+          sed -i 's/syscall_fn_t/void */g' drivers/kernelsu/hook/*.c || true
+          echo "Patched!"
+
       - name: Set Defconfig v3.2.4 FULL FIX
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
@@ -38,7 +46,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-mirror-v324-fix
+          key: clang-r536225-mirror-v324-patched
 
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
