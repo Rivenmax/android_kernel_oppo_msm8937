@@ -18,7 +18,7 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 12.33
+      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 12.45 p4d_t
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
@@ -58,16 +58,31 @@ jobs:
           sed -i '/sucompat/d' drivers/kernelsu/Makefile 2>/dev/null || true
           sed -i '/sulog/d' drivers/kernelsu/Kbuild 2>/dev/null || true
           sed -i '/sulog/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
+          /* 3.2.4 patch_memory disabled for 4.9.337 - p4d_t not exist */
+          #include <linux/kernel.h>
+          #include <linux/mm.h>
+          void ksu_patch_memory(void *addr, void *data, size_t len) {}
+          void ksu_memory_patch_init(void) {}
+          EOF
           rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
           echo "/* disabled */" > drivers/kernelsu/feature/sucompat.c
           echo "/* disabled */" > drivers/kernelsu/feature/sulog.c
           cat > drivers/kernelsu/hook/Makefile << 'EOF'
           obj-y += fs_hook.o
           obj-y += syscall_hook.o
+          obj-y += arm64/
           EOF
           cat > drivers/kernelsu/hook/Kbuild << 'EOF'
           obj-y += fs_hook.o
           obj-y += syscall_hook.o
+          obj-y += arm64/
+          EOF
+          cat > drivers/kernelsu/hook/arm64/Makefile << 'EOF'
+          obj-y += patch_memory.o
+          EOF
+          cat > drivers/kernelsu/hook/arm64/Kbuild << 'EOF'
+          obj-y += patch_memory.o
           EOF
           cat > drivers/kernelsu/hook/syscall_hook.c << 'EOF'
           #include "syscall_hook.h"
@@ -106,7 +121,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-jadi-foto1233
+          key: clang-324-jadi-foto1245
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
