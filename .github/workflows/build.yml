@@ -18,27 +18,36 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: JADIIN 3.2.4 buat 4.9.337 - HAPUS SEMUA YANG ERROR
+      - name: JADIIN 3.2.4 buat 4.9.337 - FIX FOTO 11.51
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
+          cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
+          #ifndef _KSU_SYSCALL_HOOK_H
+          #define _KSU_SYSCALL_HOOK_H
+          #include <linux/ptrace.h>
+          typedef long (*syscall_fn_t)(const struct pt_regs *);
+          extern syscall_fn_t *ksu_syscall_table;
+          void ksu_syscall_table_hook(int nr, syscall_fn_t fn, syscall_fn_t *old);
+          void ksu_syscall_table_unhook(int nr, syscall_fn_t *old);
+          void ksu_syscall_table_hook_init(void);
+          #endif
+          EOF
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
           printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
           mkdir -p include/linux/sched
           echo "#include <linux/sched.h>" > include/linux/sched/task_stack.h
           echo "#include <linux/sched.h>" > include/linux/sched/signal.h
-          
           rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
-          echo "/* 3.2.4 disabled for 4.9 */" > drivers/kernelsu/feature/sucompat.c
-          echo "/* 3.2.4 disabled for 4.9 */" > drivers/kernelsu/feature/sulog.c
-          
+          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sucompat.c
+          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sulog.c
           cat > drivers/kernelsu/hook/Makefile << 'EOF'
           obj-y += fs_hook.o
           EOF
-          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/lsm_hook.c
-          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/setuid_hook.c
-          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/syscall_hook.c
-          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/syscall_event_bridge.c
+          echo "/* fs only */" > drivers/kernelsu/hook/lsm_hook.c
+          echo "/* fs only */" > drivers/kernelsu/hook/setuid_hook.c
+          echo "/* fs only */" > drivers/kernelsu/hook/syscall_hook.c
+          echo "/* fs only */" > drivers/kernelsu/hook/syscall_event_bridge.c
 
       - name: Set Defconfig 3.2.4 JADI
         run: |
@@ -59,7 +68,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-jadi-final
+          key: clang-324-jadi-foto1151
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
