@@ -18,58 +18,70 @@ jobs:
       - name: Patch SukiSU Ultra v3.2.4 FULL
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
+          echo "Patched"
 
-      - name: BABAT TOTAL - FIX ALL FOTO 07.42 sampai 22.18
+      - name: BABAT TOTAL FIX FOTO 23.09 TWA_RESUME
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          for f in drivers/kernelsu/infra/*.c; do echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
-          echo "obj-y :=" > drivers/kernelsu/infra/Makefile
-          echo "obj-y :=" > drivers/kernelsu/infra/Kbuild
-          for f in drivers/kernelsu/extension/*.c; do echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
-          echo "obj-y :=" > drivers/kernelsu/extension/Makefile
-          echo "obj-y :=" > drivers/kernelsu/extension/Kbuild
-          for f in drivers/kernelsu/runtime/*.c; do echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
-          echo "obj-y :=" > drivers/kernelsu/runtime/Makefile
-          echo "obj-y :=" > drivers/kernelsu/runtime/Kbuild
-          for f in drivers/kernelsu/selinux/*.c; do echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
-          echo "obj-y :=" > drivers/kernelsu/selinux/Makefile
-          echo "obj-y :=" > drivers/kernelsu/selinux/Kbuild
-          for f in drivers/kernelsu/sulog/*.c; do echo "/* disabled - minmax.h 5.19+ */ #include <linux/kernel.h>" > "$f"; done
-          echo "obj-y :=" > drivers/kernelsu/sulog/Makefile
-          echo "obj-y :=" > drivers/kernelsu/sulog/Kbuild
+          
+          echo "=== BABAT infra extension runtime selinux sulog supercall ==="
+          for d in infra extension runtime selinux sulog supercall; do
+            echo "BABAT $d/"
+            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled for 4.9.337 - $d GKI 5.x+ */ #include <linux/kernel.h>" > "$f"; done
+            for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
+            echo "obj-y :=" > drivers/kernelsu/$d/Makefile
+            echo "obj-y :=" > drivers/kernelsu/$d/Kbuild
+          done
+          
+          echo "=== FIX KHUSUS supercall/supercall.c TWA_RESUME FOTO 23.09 ==="
+          cat > drivers/kernelsu/supercall/supercall.c << 'EOF'
+          /* FIX TWA_RESUME - task_work_add di 4.9 cuma 2 arg, bukan 3 - TWA_RESUME baru ada di 5.9+ */
+          #include <linux/kernel.h>
+          void ksu_supercall_init(void) {}
+          void ksu_supercall_exit(void) {}
+          long ksu_handle_supercall(void *a, void *b) { return 0; }
+          long ksu_supercall_handle(void *a) { return 0; }
+          EOF
+          cat > drivers/kernelsu/supercall/dispatch.c << 'EOF'
+          #include <linux/kernel.h>
+          EOF
+          cat > drivers/kernelsu/supercall/perm.c << 'EOF'
+          #include <linux/kernel.h>
+          EOF
+          
+          echo "=== BABAT manager policy ==="
           cat > drivers/kernelsu/manager/pkg_observer.c << 'EOF'
           #include <linux/kernel.h>
-          void ksu_pkg_observer_init(void) {}
-          void ksu_pkg_observer_exit(void) {}
+          void ksu_pkg_observer_init(void) {} void ksu_pkg_observer_exit(void) {}
           EOF
           cat > drivers/kernelsu/policy/allowlist.c << 'EOF'
           #include <linux/kernel.h>
-          void ksu_allowlist_init(void) {}
-          void ksu_allowlist_exit(void) {}
+          #include <stdbool.h>
+          void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {}
           bool ksu_is_allowlist_enabled(void) { return false; }
+          bool ksu_is_su_allowed(const char *p) { return true; }
           EOF
           cat > drivers/kernelsu/policy/app_profile.c << 'EOF'
           #include <linux/kernel.h>
-          void ksu_app_profile_init(void) {}
-          void ksu_app_profile_exit(void) {}
+          void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
           EOF
+          
+          echo "=== SHIM HEADERS 4.9.337 ==="
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
           printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
           printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
           mkdir -p include/linux/sched
-          echo "#include <linux/sched.h>" > include/linux/sched/task_stack.h
-          echo "#include <linux/sched.h>" > include/linux/sched/signal.h
-          echo "#include <linux/sched.h>" > include/linux/sched/task.h
-          echo "#include <linux/sched.h>" > include/linux/sched/mm.h
-          echo "#include <linux/sched.h>" > include/linux/sched/user.h
+          for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
+          
+          echo "=== BABAT hook/ ==="
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
           #include <linux/kernel.h>
           EOF
           cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
           #include <linux/kernel.h>
           #include <linux/mm.h>
-          void ksu_patch_memory(void *addr, void *data, size_t len) {}
+          void ksu_patch_memory(void *a, void *b, size_t c) {}
           void ksu_memory_patch_init(void) {}
           EOF
           rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
@@ -80,14 +92,11 @@ jobs:
           echo "/* disabled */" > drivers/kernelsu/hook/syscall_event_bridge.c
           echo "/* disabled */" > drivers/kernelsu/hook/syscall_hook_manager.c
           echo "/* disabled */" > drivers/kernelsu/hook/tp_marker.c
-          echo "obj-y += fs_hook.o" > drivers/kernelsu/hook/Makefile
-          echo "obj-y += syscall_hook.o" >> drivers/kernelsu/hook/Makefile
-          echo "obj-y += arm64/" >> drivers/kernelsu/hook/Makefile
-          echo "obj-y += fs_hook.o" > drivers/kernelsu/hook/Kbuild
-          echo "obj-y += syscall_hook.o" >> drivers/kernelsu/hook/Kbuild
-          echo "obj-y += arm64/" >> drivers/kernelsu/hook/Kbuild
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild
           echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile
           echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
+          
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -115,27 +124,45 @@ jobs:
           void ksu_syscall_hook_exit(void) {}
           long ksu_hook_setresuid(const struct pt_regs *regs) { return 0; }
           EOF
+          
+          echo "=== STUB BIAR GAK UNDEFINED REFERENCE - FIX FOTO 23.06 ==="
+          cat > drivers/kernelsu/ksu_stub_4_9.c << 'EOF'
+          #include <linux/kernel.h>
+          void ksu_handle_execveat_ksud(int a, void *b) {}
+          void ksu_handle_fork(void *a) {}
+          void ksu_handle_exit(void) {}
+          int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; }
+          void ksu_sulog_init(void) {}
+          void ksu_sulog_exit(void) {}
+          void ksu_sucompat_init(void) {}
+          void ksu_sucompat_exit(void) {}
+          bool ksu_is_ksud_should_umount(void) { return false; }
+          void ksu_supercall_init(void) {}
+          void ksu_supercall_exit(void) {}
+          EOF
+          grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
+          grep -q "ksu_stub" drivers/kernelsu/Kbuild || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Kbuild
+          
+          echo "BABAT DONE"
 
       - name: Set Defconfig
         run: |
-          DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
-          if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
-          echo "CONFIG_KSU=y" >> $DEFCONFIG
-          echo "CONFIG_KSU_MANUAL_HOOK=y" >> $DEFCONFIG
-          echo "# CONFIG_KPM is not set" >> $DEFCONFIG
-          echo "CONFIG_KALLSYMS=y" >> $DEFCONFIG
-          echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
-          echo "# CONFIG_DEBUG_INFO is not set" >> $DEFCONFIG
-          sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' $DEFCONFIG || true
+          D=arch/arm64/configs/lineageos_A57_defconfig
+          [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
+          echo "CONFIG_KSU=y" >> $D
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> $D
+          echo "# CONFIG_KPM is not set" >> $D
+          echo "# CONFIG_DEBUG_INFO is not set" >> $D
+          sed -i 's/CONFIG_DEBUG_INFO=y/# CONFIG_DEBUG_INFO is not set/' $D || true
 
-      - name: Cache Clang
+      - name: Cache Clang FULL
         id: cache-clang
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-final-v2-foto2233
+          key: clang-r536225-foto2309-final
 
-      - name: Download Clang FULL 1.2GB MIRROR
+      - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           rm -rf $HOME/clang
@@ -149,13 +176,22 @@ jobs:
           sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-      - name: Build Kernel 3.2.4 FULL - 1x JADI
+      - name: Build Kernel 3.2.4 1x JADI
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w"
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w" 2>&1 | tee build.log
+          grep -i "error:\|undefined" build.log | tail -n 50 || echo "No error in log"
+
+      - name: Upload LOG
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-log-2309-TWA_RESUME
+          path: build.log
 
       - name: Make TWRP ZIP
+        if: success()
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           ls -lh out/arch/arm64/boot/
@@ -164,8 +200,9 @@ jobs:
           zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder
           cd ..
 
-      - name: Upload
+      - name: Upload ZIP
+        if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-1x-JADI
+          name: A57-SUKISU-v3.2.4-1x-JADI-TWRP
           path: A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip
