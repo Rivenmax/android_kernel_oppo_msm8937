@@ -99,15 +99,30 @@ jobs:
           find out -name "Image*" | head -n 20
           ls -lh out/arch/arm64/boot/ || true
 
-      - name: Make TWRP ZIP - FIX 00.09
+      - name: Make TWRP ZIP - FIX #45 PACKAGING
         if: always()
         run: |
-          find out -name "Image*" -type f
-          IMG=$(find out -name "Image.gz-dtb" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
-          echo "IMG=$IMG"; ls -lh $IMG
+          echo "=== Build Kernel SUCCESS, cari Image ==="
+          ls -lh out/ | head -n 20
+          find out -type f -name "Image*" 2>/dev/null
+          find out -type f -name "vmlinux" 2>/dev/null | head -n 5
+          
+          # BUILD IMAGE EXPLICIT - BIAR PASTI ADA
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w" Image.gz-dtb -j$(nproc) || make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w" Image.gz -j$(nproc) || true
+          
+          IMG=$(find out -name "Image.gz-dtb" | head -n 1)
+          [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1)
+          [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
+          
+          echo "FINAL IMG: $IMG"
+          ls -lh $IMG
+          
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp $IMG AnyKernel3/
-          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder; cd ..
+          cd AnyKernel3
+          zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder
+          cd ..
+          ls -lh *.zip
 
       - name: Upload ZIP
         if: success()
