@@ -18,7 +18,7 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: BABAT infra + pkg_observer - FIX FOTO 16.01
+      - name: BABAT infra + pkg_observer + allowlist - FIX FOTO 18.00
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           for f in drivers/kernelsu/infra/*.c; do echo "/* disabled for 4.9.337 */ #include <linux/kernel.h>" > "$f"; done
@@ -29,10 +29,17 @@ jobs:
           obj-y :=
           EOF
           cat > drivers/kernelsu/manager/pkg_observer.c << 'EOF'
-          /* disabled for 4.9.337 - fsnotify_ops handle_inode_event 5.x+ */
+          /* disabled for 4.9.337 - fsnotify handle_inode_event 5.x+ */
           #include <linux/kernel.h>
           void ksu_pkg_observer_init(void) {}
           void ksu_pkg_observer_exit(void) {}
+          EOF
+          cat > drivers/kernelsu/policy/allowlist.c << 'EOF'
+          /* disabled for 4.9.337 - kernel_write, TWA_RESUME, fallthrough only 5.x+ */
+          #include <linux/kernel.h>
+          void ksu_allowlist_init(void) {}
+          void ksu_allowlist_exit(void) {}
+          bool ksu_is_allowlist_enabled(void) { return false; }
           EOF
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
@@ -58,11 +65,11 @@ jobs:
           echo "#include <linux/sched.h>" > include/linux/sched/task.h
           echo "#include <linux/sched.h>" > include/linux/sched/mm.h
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
-          /* disabled */
+          /* disabled for 4.9.337 */
           #include <linux/kernel.h>
           EOF
           cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
-          /* disabled - p4d_t 4.12+ */
+          /* disabled for 4.9.337 - p4d_t 4.12+ */
           #include <linux/kernel.h>
           #include <linux/mm.h>
           void ksu_patch_memory(void *addr, void *data, size_t len) {}
@@ -124,7 +131,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-foto1601
+          key: clang-324-foto1800
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
