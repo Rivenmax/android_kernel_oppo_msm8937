@@ -1,4 +1,4 @@
-name: Build A57 SukiSU v3.2.4 FULL FINAL FIX
+name: Build A57 SukiSU v3.2.4 JADI
 
 permissions:
   contents: write
@@ -18,29 +18,29 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: FIX ALL 3.2.4 for 4.9.337 - FOTO 07.42-11.11
+      - name: JADIIN 3.2.4 buat 4.9.337 - HAPUS SEMUA YANG ERROR
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          sed -i 's/syscall_fn_t/void */g' drivers/kernelsu/hook/syscall_hook.h || true
-          sed -i 's/syscall_fn_t/void */g' drivers/kernelsu/hook/*.c || true
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
           printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
           mkdir -p include/linux/sched
           echo "#include <linux/sched.h>" > include/linux/sched/task_stack.h
           echo "#include <linux/sched.h>" > include/linux/sched/signal.h
-          echo "#include <linux/sched.h>" > include/linux/sched/mm.h
-          echo "#include <linux/sched.h>" > include/linux/sched/task.h
+          
           rm -f drivers/kernelsu/feature/sucompat.c drivers/kernelsu/feature/sulog.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sucompat.c
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/feature/sulog.c
+          echo "/* 3.2.4 disabled for 4.9 */" > drivers/kernelsu/feature/sucompat.c
+          echo "/* 3.2.4 disabled for 4.9 */" > drivers/kernelsu/feature/sulog.c
+          
           cat > drivers/kernelsu/hook/Makefile << 'EOF'
-          obj-y += syscall_hook.o
           obj-y += fs_hook.o
           EOF
-          echo "/* disabled for 4.9 */" > drivers/kernelsu/hook/lsm_hook.c
+          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/lsm_hook.c
+          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/setuid_hook.c
+          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/syscall_hook.c
+          echo "/* 3.2.4 fs only */" > drivers/kernelsu/hook/syscall_event_bridge.c
 
-      - name: Set Defconfig v3.2.4
+      - name: Set Defconfig 3.2.4 JADI
         run: |
           DEFCONFIG=arch/arm64/configs/lineageos_A57_defconfig
           if [ ! -f $DEFCONFIG ]; then DEFCONFIG=arch/arm64/configs/lineageos_R9s_defconfig; fi
@@ -59,9 +59,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-mirror-v324-allfix2
+          key: clang-324-jadi-final
 
-      - name: Download Clang MIRROR
+      - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/clang
@@ -73,26 +73,26 @@ jobs:
           sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
           echo "$HOME/clang/bin" >> $GITHUB_PATH
 
-      - name: Build Kernel v3.2.4
+      - name: Build Kernel 3.2.4 JADI
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
           make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0"
 
-      - name: Make TWRP ZIP v3.2.4
+      - name: Make TWRP ZIP 3.2.4 JADI
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           ls -lh out/arch/arm64/boot/
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ 2>/dev/null || cp out/arch/arm64/boot/Image.gz AnyKernel3/ || cp out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           sed -i 's/test-keys/release-keys/g' anykernel.sh
-          zip -r9 ../A57-SUKISU-v3.2.4-FULL-TWRP.zip * -x .git README.md *placeholder
+          zip -r9 ../A57-SUKISU-v3.2.4-JADI-TWRP.zip * -x .git README.md *placeholder
           cd ..
 
-      - name: Upload v3.2.4
+      - name: Upload 3.2.4 JADI
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-FULL
+          name: A57-SUKISU-v3.2.4-JADI
           path: |
-            A57-SUKISU-v3.2.4-FULL-TWRP.zip
+            A57-SUKISU-v3.2.4-JADI-TWRP.zip
             out/arch/arm64/boot/Image*
