@@ -44,30 +44,25 @@ jobs:
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           mkdir -p $HOME/clang
-          echo "Mirror 1: LineageOS 【entity-Github¦canonical_name=Github】 (anti DNS fail foto 00.41)"
-          if ! git clone https://github.[STRIPPED 66 bytes] --depth=1 $HOME/clang 2>&1; then
-            echo "Mirror 1 failed, Mirror 2: 【entity-Proton¦canonical_name=Proton】"
-            rm -rf $HOME/clang
-            git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang
-          fi
+          git clone https://github.[STRIPPED 66 bytes] --depth=1 $HOME/clang || git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang
 
       - name: Setup Toolchains + PATH
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-          $HOME/clang/bin/clang --version || clang --version
 
       - name: Build Kernel v3.2.4 FULL
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0" 2>&1 | tee build.log || ( tail -n 300 build.log && exit 2 )
+          make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0"
 
       - name: Make TWRP ZIP v3.2.4 FULL
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
-          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          ls -lh out/arch/arm64/boot/
+          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ 2>/dev/null || cp out/arch/arm64/boot/Image.gz AnyKernel3/ || cp out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           sed -i 's/test-keys/release-keys/g' anykernel.sh
           zip -r9 ../A57-SUKISU-v3.2.4-FULL-TWRP.zip * -x .git README.md *placeholder
@@ -79,4 +74,4 @@ jobs:
           name: A57-SUKISU-v3.2.4-FULL
           path: |
             A57-SUKISU-v3.2.4-FULL-TWRP.zip
-            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image*
