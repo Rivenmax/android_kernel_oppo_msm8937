@@ -18,13 +18,20 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
 
-      - name: 1x JADI - BABAT SEMUA YANG GAK ADA DI 4.9
+      - name: BABAT infra/ - FIX FOTO 15.42 __poll_t EPOLLHUP
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          for f in $(grep -r -l "p4d_t\|ksu_syscall_hook_fn\|ksu_wrapper_remap\|ksu_wrapper_fadvise" drivers/kernelsu/ 2>/dev/null || true); do
+          echo "BABAT SEMUA infra/*.c"
+          for f in drivers/kernelsu/infra/*.c; do
             echo "BABAT $f"
             echo "/* disabled for 4.9.337 */ #include <linux/kernel.h>" > "$f"
           done
+          cat > drivers/kernelsu/infra/Makefile << 'EOF'
+          obj-y :=
+          EOF
+          cat > drivers/kernelsu/infra/Kbuild << 'EOF'
+          obj-y :=
+          EOF
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -48,14 +55,8 @@ jobs:
           echo "#include <linux/sched.h>" > include/linux/sched/signal.h
           echo "#include <linux/sched.h>" > include/linux/sched/task.h
           echo "#include <linux/sched.h>" > include/linux/sched/mm.h
-          cat > drivers/kernelsu/infra/file_wrapper.c << 'EOF'
-          /* disabled for 4.9.337 - remap_file_range, fadvise, security_inode_init_security_anon 5.17+ */
-          #include <linux/kernel.h>
-          #include <linux/fs.h>
-          void ksu_file_wrapper_init(void) {}
-          EOF
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
-          /* disabled for 4.9.337 - ksu_syscall_hook_fn GKI only */
+          /* disabled for 4.9.337 */
           #include <linux/kernel.h>
           EOF
           cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
@@ -89,12 +90,6 @@ jobs:
           cat > drivers/kernelsu/hook/arm64/Kbuild << 'EOF'
           obj-y += patch_memory.o
           EOF
-          cat > drivers/kernelsu/infra/Makefile << 'EOF'
-          obj-y += file_wrapper.o
-          EOF
-          cat > drivers/kernelsu/infra/Kbuild << 'EOF'
-          obj-y += file_wrapper.o
-          EOF
           cat > drivers/kernelsu/hook/syscall_hook.c << 'EOF'
           #include "syscall_hook.h"
           #include <linux/ptrace.h>
@@ -107,8 +102,6 @@ jobs:
           void ksu_syscall_hook_exit(void) {}
           long ksu_hook_setresuid(const struct pt_regs *regs) { return 0; }
           EOF
-          sed -i '/lsm_hook/d; /setuid_hook/d; /syscall_event_bridge/d; /syscall_hook_manager/d; /tp_marker/d; /sucompat/d; /sulog/d' drivers/kernelsu/Kbuild || true
-          sed -i '/lsm_hook/d; /setuid_hook/d; /syscall_event_bridge/d; /syscall_hook_manager/d; /tp_marker/d; /sucompat/d; /sulog/d' drivers/kernelsu/Makefile || true
 
       - name: Set Defconfig
         run: |
@@ -129,7 +122,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-324-babat-all
+          key: clang-324-foto1542
 
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
