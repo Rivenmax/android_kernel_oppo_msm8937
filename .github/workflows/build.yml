@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX FOTO 23.09 TWA_RESUME
+      - name: BABAT TOTAL FIX selinux_state FOTO 01.02
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
@@ -34,7 +34,17 @@ jobs:
           #include <linux/kernel.h>
           void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
           EOF
-          mkdir -p include/linux; echo "#include <linux/compiler.h>" > include/linux/compiler_types.h; printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h; printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h; mkdir -p include/linux/sched; for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
+          mkdir -p include/linux; echo "#include <linux/compiler.h>" > include/linux/compiler_types.h; printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h; printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
+          cat > include/linux/selinux_state.h << 'EOF'
+          #ifndef _LINUX_SELINUX_STATE_H
+          #define _LINUX_SELINUX_STATE_H
+          struct selinux_state { int dummy; bool enforcing; };
+          extern struct selinux_state selinux_state;
+          struct selinux_state selinux_state;
+          #endif
+          EOF
+          mkdir -p include/linux/sched; for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
+          grep -rIl "selinux_state" drivers/kernelsu/ 2>/dev/null | xargs -r sed -i '1i #include <linux/selinux_state.h>' || true
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
           #include <linux/kernel.h>
           EOF
@@ -72,7 +82,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto2309-final
+          key: clang-r536225-foto0736
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -86,17 +96,21 @@ jobs:
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w"
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w" Image.gz-dtb -j$(nproc) || true
-          find out -name "Image*" -type f
-      - name: Make TWRP ZIP - FIX #45
+          ./scripts/config --file out/.config --disable CONFIG_CC_STACKPROTECTOR --disable CONFIG_CC_STACKPROTECTOR_STRONG --disable CONFIG_CC_STACKPROTECTOR_REGULAR --enable CONFIG_CC_STACKPROTECTOR_NONE
+          ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
+          make O=out olddefconfig
+          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h"
+      - name: Make TWRP ZIP
+        if: success()
         run: |
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j$(nproc) || true
           IMG=$(find out -name "Image.gz-dtb" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
-          echo "IMG=$IMG"; ls -lh $IMG
+          ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp $IMG AnyKernel3/
           cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder; cd ..
       - name: Upload ZIP
+        if: success()
         uses: actions/upload-artifact@v5
         with:
           name: A57-SUKISU-v3.2.4-1x-JADI-TWRP
