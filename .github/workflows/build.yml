@@ -25,5 +25,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-FULL
+          name: A57-SUKISU-v3.2.4-1x-JADI-TWRP
           path: A57-*.zip
