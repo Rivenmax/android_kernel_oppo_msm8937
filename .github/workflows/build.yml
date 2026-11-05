@@ -13,18 +13,17 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX selinux_hide.c FOTO 11.11
+      - name: BABAT TOTAL FIX 11.44 kpm.c cache_sid
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          echo "=== BABAT infra extension runtime selinux sulog supercall feature ==="
+          echo "BABAT kpm.c + infra extension runtime selinux sulog supercall feature"
+          echo "/* KPM DISABLED FOR 4.9.337 - GKI 5.10+ ONLY */" > drivers/kernelsu/core/kpm.c
           for d in infra extension runtime selinux sulog supercall feature; do
-            echo "BABAT $d/"
-            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled for 4.9.337 - $d */ #include <linux/kernel.h>" > "$f"; done
+            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled for 4.9 */ #include <linux/kernel.h>" > "$f"; done
             for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
             echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
             echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
           done
-          # feature/ Makefile harus kosong biar selinux_hide.o gak ke-build
           echo "obj-y :=" > drivers/kernelsu/feature/Makefile
           echo "obj-y :=" > drivers/kernelsu/feature/Kbuild
           cat > drivers/kernelsu/supercall/supercall.c << 'EOF'
@@ -38,7 +37,7 @@ jobs:
           cat > drivers/kernelsu/policy/allowlist.c << 'EOF'
           #include <linux/kernel.h>
           #include <stdbool.h>
-          void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {} bool ksu_is_allowlist_enabled(void) { return false; }
+          void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {} bool ksu_is_allowlist_enabled(void) { return false; } void ksu_load_allow_list(void) {} void ksu_save_allow_list(void) {}
           EOF
           cat > drivers/kernelsu/policy/app_profile.c << 'EOF'
           #include <linux/kernel.h>
@@ -90,9 +89,12 @@ jobs:
           #include <linux/selinux_state.h>
           struct selinux_state selinux_state;
           void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_fork(void *a) {} void ksu_handle_exit(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} bool ksu_is_ksud_should_umount(void) { return false; } void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {}
+          void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_load_allow_list(void) {} void ksu_save_allow_list(void) {}
+          int kpm_init(void) { return 0; } void kpm_exit(void) {}
           EOF
           grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
-          echo "BABAT DONE - feature/ selinux_hide.c udah di-babat"
+          grep -q "kpm" drivers/kernelsu/Makefile && sed -i '/kpm/d' drivers/kernelsu/Makefile || true
+          echo "BABAT DONE - kpm.c + selinux_hide.c done"
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -102,7 +104,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto1111-selinux_hide
+          key: clang-r536225-foto1144-kpm
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -112,7 +114,7 @@ jobs:
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-      - name: Build Kernel 3.2.4 1x JADI - J1 BIAR KELIATAN ERROR
+      - name: Build Kernel 3.2.4 1x JADI - J1
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -125,9 +127,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-foto1111
+          name: build-log-foto1144
           path: build.log
-      - name: Make TWRP ZIP - FIX Image not found
+      - name: Make TWRP ZIP - FIX kpm.c
         if: success()
         run: |
           make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
