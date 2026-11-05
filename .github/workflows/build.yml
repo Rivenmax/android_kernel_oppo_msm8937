@@ -22,8 +22,8 @@ jobs:
           name: build-log-B
           path: build.log
       - name: Upload ZIP
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-FINAL-B
-          path: A57-SUKISU-v3.2.4-FINAL.zip
+          name: A57-SUKISU-v3.2.4-FULL
+          path: A57-*.zip
