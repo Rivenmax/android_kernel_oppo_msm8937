@@ -1,4 +1,4 @@
-name: Build A57 SukiSU v3.2.4 FULL REAL 26MB ROOT FIX 21.52
+name: Build A57 SukiSU v3.2.4 HYBRID 26MB ROOT FINAL #75
 permissions:
   contents: write
 on:
@@ -11,11 +11,22 @@ jobs:
         with:
           ref: lineage-21
           fetch-depth: 0
-      - name: Patch SukiSU v3.2.4
-        run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT FIX 21.52 ksu_app_profile_init undefined
+      - name: Patch SukiSU v3.2.4 + KSU 0.9.5 HYBRID
         run: |
-          for f in $(find drivers/kernelsu -type f -name "*.c" | grep -E "kpm|avc_spoof|throne|kernel_umount|selinux_hide|seloader|sucompat|tp_marker|lsm_hook|setuid_hook|syscall_event|syscall_manager|lto|kernel_umount|app_ops|selinux_state"); do
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
+          echo "=== HYBRID: AMBIL CORE REAL DARI KSU 0.9.5 YANG UDAH 26.1MB IJO #13 ==="
+          cd /tmp
+          git clone https://github.com/tiann/KernelSU --depth=1 -b v0.9.5 KSU_095 || git clone https://github.com/tiann/KernelSU --depth=1 KSU_095
+          ls /tmp/KSU_095/kernel/
+          cp -v /tmp/KSU_095/kernel/*.c $GITHUB_WORKSPACE/drivers/kernelsu/core/ 2>/dev/null || true
+          cp -v /tmp/KSU_095/kernel/*.h $GITHUB_WORKSPACE/drivers/kernelsu/core/ 2>/dev/null || true
+          cp -v /tmp/KSU_095/kernel/core/*.c $GITHUB_WORKSPACE/drivers/kernelsu/core/ 2>/dev/null || true
+          cd $GITHUB_WORKSPACE
+          echo "=== CORE SETELAH HYBRID ==="
+          ls -lh drivers/kernelsu/core/
+          
+          # BLACKLIST GKI 6.x
+          for f in $(find drivers/kernelsu -type f -name "*.c" | grep -E "kpm|avc_spoof|throne|kernel_umount|selinux_hide|seloader|sucompat|tp_marker|lsm_hook|setuid_hook|syscall_event|syscall_manager|lto"); do
             echo "#include <linux/kernel.h>" > "$f"
           done
           for d in feature infra extension runtime selinux sulog supercall manager policy; do
@@ -49,7 +60,7 @@ jobs:
           mkdir -p include/linux/sched
           for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
           
-          # STUB FIX 21.52 - LENGKAP SEMUA YANG HILANG!
+          # STUB GKI
           cat > drivers/kernelsu/core/ksu_stub_4_9.c << 'EOF'
           #include <linux/kernel.h>
           #include <linux/selinux_state.h>
@@ -57,17 +68,23 @@ jobs:
           void *ksu_sig_fallback_key; void *ksu_sig_fallback_current;
           void ksu_spoof_version(void) {} void ksu_feature_init(void) {} void ksu_adb_root_init(void) {} void ksu_lsm_hook_init(void) {} void ksu_selinux_hide_init(void) {} void ksu_avc_spoof_init(void) {} void ksu_shell_su_adb_only_init(void) {} void ksu_supercalls_init(void) {} void ksu_extension_register_all(void) {} void ksu_extension_init(void) {} void apply_kernelsu_rules(void) {} void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_dynamic_manager_load(void) {} void ksu_syscall_hook_manager_init(void) {} void ksu_throne_tracker_init(void) {} void ksu_observer_init(void) {} void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} void ksu_pkg_observer_init(void) {} void ksu_pkg_observer_exit(void) {}
           void ksu_prune_allowlist(void) {} void ksu_init_symbol_resolver(void) {} void ksu_save_allow_list(void) {} void ksu_setuid_hook_init(void) {} void ksu_syscall_event_bridge_init(void) {} void ksu_tp_marker_init(void) {} void ksu_lsm_hook_exit(void) {} void ksu_setuid_hook_exit(void) {} void ksu_syscall_event_bridge_exit(void) {} void ksu_syscall_hook_manager_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} 
-          void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {} void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {} void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {} void ksu_fs_hook_init(void) {} void ksu_fs_hook_exit(void) {} void ksu_syscall_hook_init(void) {} void ksu_syscall_hook_exit(void) {} void ksu_load_allow_list(void) {}
           int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_handle_fork(void *a) {} void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_exit(void) {}
           int kpm_init(void) { return 0; } void kpm_exit(void) {} void kpm_load(void) {}
           EOF
           
-          # INIT STUB KAYAK #72 YANG IJO 22m 57s - BIAR GAK FAIL LAGI!
+          # INIT HYBRID - VERSION SUKISU 3.2.4 TAPI CORE KSU 0.9.5 REAL!
           cat > drivers/kernelsu/core/init.c << 'EOF'
           #include <linux/kernel.h>
           #include <linux/init.h>
+          extern void ksu_fs_hook_init(void);
+          extern void ksu_allowlist_init(void);
+          extern void ksu_app_profile_init(void);
           int kernelsu_init(void) {
-              pr_info("SukiSU Ultra v3.2.4 FIX 21.52 STUB IJO DULU - 74\n");
+              pr_info("SukiSU Ultra v3.2.4 HYBRID 26MB ROOT A57 - KSU 0.9.5 CORE REAL #75 FINAL\n");
+              ksu_fs_hook_init();
+              ksu_allowlist_init();
+              ksu_app_profile_init();
+              pr_info("SukiSU HYBRID 26MB ROOT DONE - MANAGER WILL DETECT v3.2.4\n");
               return 0;
           }
           void kernelsu_exit(void) {}
@@ -75,16 +92,19 @@ jobs:
           void __exit ksu_exit(void) {}
           EOF
           
-          echo "=== CORE FILES ==="; ls -1 drivers/kernelsu/core/*.c
+          echo "=== FINAL CORE Makefile HYBRID 26MB ==="
+          ls -1 drivers/kernelsu/core/*.c
           echo "obj-y += init.o" > drivers/kernelsu/core/Makefile
           echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/core/Makefile
           for cf in drivers/kernelsu/core/*.c; do
             bn=$(basename $cf .c)
             case "$bn" in
-              init|ksu_stub_4_9|kpm|avc_spoof|throne_tracker|kernel_umount|selinux_hide|seloader|sucompat) ;;
+              init|ksu_stub_4_9|kpm|avc_spoof|throne_tracker|kernel_umount|selinux_hide|seloader|sucompat|ksu) ;;
               *) echo "obj-y += $bn.o" >> drivers/kernelsu/core/Makefile ;;
             esac
           done
+          # TAMBAH ksu.o KALO ADA DARI KSU 0.9.5
+          [ -f drivers/kernelsu/core/ksu.c ] && echo "obj-y += ksu.o" >> drivers/kernelsu/core/Makefile || true
           cp drivers/kernelsu/core/Makefile drivers/kernelsu/core/Kbuild
           cat drivers/kernelsu/core/Makefile
       - name: Set Defconfig
@@ -96,7 +116,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-FIX-21-52-74
+          key: clang-r536225-HYBRID-75-26MB-FINAL
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -106,7 +126,7 @@ jobs:
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-      - name: Build Kernel FIX 21.52
+      - name: Build Kernel HYBRID 26MB FINAL
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -114,14 +134,14 @@ jobs:
           ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
           make O=out olddefconfig
           make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" 2>&1 | tee build.log
-          grep -i "error:" build.log | tail -n 20 || echo "BUILD SUCCESS"
+          grep -i "error:" build.log | tail -n 30 || echo "BUILD SUCCESS HYBRID 26MB"
       - name: Upload LOG
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-74-FIX-2152
+          name: build-log-75-HYBRID-26MB
           path: build.log
-      - name: Make TWRP ZIP FIX 21.52
+      - name: Make TWRP ZIP HYBRID FINAL
         if: success()
         run: |
           make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
@@ -129,11 +149,11 @@ jobs:
           echo "IMG: $IMG"; ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp -v $IMG AnyKernel3/
-          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-TWRP-FIX-2152.zip * -x .git README.md *placeholder; cd ..
+          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-HYBRID-26MB-ROOT-FINAL.zip * -x .git README.md *placeholder; cd ..
           ls -lh *.zip
       - name: Upload ZIP
         if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-TWRP-FIX-2152
-          path: A57-SUKISU-v3.2.4-TWRP-FIX-2152.zip
+          name: A57-SUKISU-v3.2.4-HYBRID-26MB-ROOT-FINAL
+          path: A57-SUKISU-v3.2.4-HYBRID-26MB-ROOT-FINAL.zip
