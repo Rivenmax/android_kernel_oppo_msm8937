@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX duplicate selinux_state FOTO 09.04
+      - name: BABAT TOTAL FIX duplicate selinux_state
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
@@ -84,7 +84,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto0904-duplicate
+          key: clang-r536225-foto0949-fix
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -101,11 +101,18 @@ jobs:
           ./scripts/config --file out/.config --disable CONFIG_CC_STACKPROTECTOR --disable CONFIG_CC_STACKPROTECTOR_STRONG --disable CONFIG_CC_STACKPROTECTOR_REGULAR --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
           make O=out olddefconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h"
+          make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" 2>&1 | tee build.log
+          grep -i "error:" build.log | tail -n 50 || true
+      - name: Upload LOG
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-log
+          path: build.log
       - name: Make TWRP ZIP
         if: success()
         run: |
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j$(nproc) || true
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 || true
           IMG=$(find out -name "Image.gz-dtb" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
           ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
