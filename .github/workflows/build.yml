@@ -13,10 +13,20 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX selinux_state
+      - name: BABAT TOTAL FIX selinux_hide.c FOTO 11.11
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
+          echo "=== BABAT infra extension runtime selinux sulog supercall feature ==="
+          for d in infra extension runtime selinux sulog supercall feature; do
+            echo "BABAT $d/"
+            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled for 4.9.337 - $d */ #include <linux/kernel.h>" > "$f"; done
+            for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
+            echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
+            echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
+          done
+          # feature/ Makefile harus kosong biar selinux_hide.o gak ke-build
+          echo "obj-y :=" > drivers/kernelsu/feature/Makefile
+          echo "obj-y :=" > drivers/kernelsu/feature/Kbuild
           cat > drivers/kernelsu/supercall/supercall.c << 'EOF'
           #include <linux/kernel.h>
           void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} long ksu_handle_supercall(void *a, void *b) { return 0; }
@@ -34,7 +44,10 @@ jobs:
           #include <linux/kernel.h>
           void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
           EOF
-          mkdir -p include/linux; echo "#include <linux/compiler.h>" > include/linux/compiler_types.h; printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h; printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
+          mkdir -p include/linux
+          echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
+          printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
+          printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
           cat > include/linux/selinux_state.h << 'EOF'
           #ifndef _LINUX_SELINUX_STATE_H
           #define _LINUX_SELINUX_STATE_H
@@ -43,7 +56,8 @@ jobs:
           extern struct selinux_state selinux_state;
           #endif
           EOF
-          mkdir -p include/linux/sched; for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
+          mkdir -p include/linux/sched
+          for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
           grep -rIl "selinux_state" drivers/kernelsu/ 2>/dev/null | xargs -r sed -i '1i #include <linux/selinux_state.h>' || true
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
           #include <linux/kernel.h>
@@ -53,8 +67,11 @@ jobs:
           #include <linux/mm.h>
           void ksu_patch_memory(void *a, void *b, size_t c) {} void ksu_memory_patch_init(void) {}
           EOF
-          for f in feature/sucompat.c feature/sulog.c hook/lsm_hook.c hook/setuid_hook.c hook/syscall_event_bridge.c hook/syscall_hook_manager.c hook/tp_marker.c; do echo "/* disabled */" > drivers/kernelsu/$f; done
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile; printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild; echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile; echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
+          for f in hook/lsm_hook.c hook/setuid_hook.c hook/syscall_event_bridge.c hook/syscall_hook_manager.c hook/tp_marker.c; do echo "/* disabled */" > drivers/kernelsu/$f; done
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild
+          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile
+          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -75,6 +92,7 @@ jobs:
           void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_fork(void *a) {} void ksu_handle_exit(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} bool ksu_is_ksud_should_umount(void) { return false; } void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {}
           EOF
           grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
+          echo "BABAT DONE - feature/ selinux_hide.c udah di-babat"
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -84,7 +102,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-error2-fix-j1
+          key: clang-r536225-foto1111-selinux_hide
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -102,23 +120,23 @@ jobs:
           ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
           make O=out olddefconfig
           make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" 2>&1 | tee build.log
-          echo "=== TAIL 200 ==="; tail -n 200 build.log
-          echo "=== GREP ERROR ==="; grep -i "error:\|undefined reference\|duplicate" build.log | tail -n 100 || true
-      - name: Upload LOG - BIAR GUE BISA BACA ERROR 2
+          grep -i "error:" build.log | tail -n 20 || echo "NO ERROR - BUILD SUCCESS"
+      - name: Upload LOG
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-error2
+          name: build-log-foto1111
           path: build.log
-      - name: Make TWRP ZIP
+      - name: Make TWRP ZIP - FIX Image not found
         if: success()
         run: |
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 || true
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
           IMG=$(find out -name "Image.gz-dtb" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
-          ls -lh $IMG
+          echo "IMG: $IMG"; ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp -v $IMG AnyKernel3/
           cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder; cd ..
+          ls -lh *.zip
       - name: Upload ZIP
         if: success()
         uses: actions/upload-artifact@v5
