@@ -34,10 +34,7 @@ jobs:
           #include <linux/kernel.h>
           void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
           EOF
-          mkdir -p include/linux
-          echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
-          printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
-          printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
+          mkdir -p include/linux; echo "#include <linux/compiler.h>" > include/linux/compiler_types.h; printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h; printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
           cat > include/linux/selinux_state.h << 'EOF'
           #ifndef _LINUX_SELINUX_STATE_H
           #define _LINUX_SELINUX_STATE_H
@@ -46,8 +43,7 @@ jobs:
           extern struct selinux_state selinux_state;
           #endif
           EOF
-          mkdir -p include/linux/sched
-          for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
+          mkdir -p include/linux/sched; for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
           grep -rIl "selinux_state" drivers/kernelsu/ 2>/dev/null | xargs -r sed -i '1i #include <linux/selinux_state.h>' || true
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
           #include <linux/kernel.h>
@@ -58,10 +54,7 @@ jobs:
           void ksu_patch_memory(void *a, void *b, size_t c) {} void ksu_memory_patch_init(void) {}
           EOF
           for f in feature/sucompat.c feature/sulog.c hook/lsm_hook.c hook/setuid_hook.c hook/syscall_event_bridge.c hook/syscall_hook_manager.c hook/tp_marker.c; do echo "/* disabled */" > drivers/kernelsu/$f; done
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild
-          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile
-          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile; printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild; echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile; echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -91,47 +84,41 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-final-image-fix
+          key: clang-r536225-error2-fix-j1
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           rm -rf $HOME/clang; mkdir -p $HOME/clang
-          git clone https://github.com/LineageOS/android_prebuilts_clang_host_linux-x86_clang-r536225 --depth=1 $HOME/clang || { rm -rf $HOME/clang; git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang; }
+          git clone https://github.[STRIPPED 66 bytes] --depth=1 $HOME/clang || { rm -rf $HOME/clang; git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang; }
       - name: Setup Toolchains
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-      - name: Build Kernel 3.2.4 1x JADI
+      - name: Build Kernel 3.2.4 1x JADI - J1 BIAR KELIATAN ERROR
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
           ./scripts/config --file out/.config --disable CONFIG_CC_STACKPROTECTOR --disable CONFIG_CC_STACKPROTECTOR_STRONG --disable CONFIG_CC_STACKPROTECTOR_REGULAR --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
           make O=out olddefconfig
-          make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h"
-      - name: Make TWRP ZIP - FIX Image not found FINAL
+          make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" 2>&1 | tee build.log
+          echo "=== TAIL 200 ==="; tail -n 200 build.log
+          echo "=== GREP ERROR ==="; grep -i "error:\|undefined reference\|duplicate" build.log | tail -n 100 || true
+      - name: Upload LOG - BIAR GUE BISA BACA ERROR 2
         if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: build-log-error2
+          path: build.log
+      - name: Make TWRP ZIP
+        if: success()
         run: |
-          echo "=== Build DTBS + Image ==="
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image -j1 2>&1 | tail -n 20
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz -j1 2>&1 | tail -n 20
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" dtbs -j1 2>&1 | tail -n 20
-          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
-          echo "=== CARI IMAGE ==="
-          find out/arch -name "Image*" -type f 2>/dev/null
-          ls -lh out/arch/arm64/boot/
-          IMG=$(find out -name "Image.gz-dtb" | head -n 1)
-          [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1)
-          [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
-          echo "IMG FINAL: $IMG"
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 || true
+          IMG=$(find out -name "Image.gz-dtb" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1); [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
           ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
-          if [ -z "$IMG" ]; then echo "ERROR Image not found"; exit 1; fi
           cp -v $IMG AnyKernel3/
-          cd AnyKernel3
-          zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder
-          cd ..
-          ls -lh *.zip
+          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder; cd ..
       - name: Upload ZIP
         if: success()
         uses: actions/upload-artifact@v5
