@@ -1,36 +1,42 @@
 #!/bin/bash
 set -e
-echo "=== Patch SukiSU 3.2.4 ==="
 curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-echo "=== BABAT GKI FIX ==="
 git checkout -- security/ 2>/dev/null || true
 find drivers/kernelsu -type f \( -name "*kpm*" -o -name "*avc_spoof*" -o -name "*throne*" \) -exec sh -c 'echo "#include <linux/kernel.h>" > "$1"' _ {} \; 2>/dev/null || true
-for d in feature infra extension runtime selinux sulog supercall manager policy; do
-  echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
-  echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
-  for cf in drivers/kernelsu/$d/*.c; do [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true; done
-done
+for d in feature infra extension runtime selinux sulog supercall manager policy; do echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true; for cf in drivers/kernelsu/$d/*.c; do [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true; done; done
 echo "obj-y :=" > drivers/kernelsu/hook/Makefile; echo "obj-y :=" > drivers/kernelsu/hook/Kbuild
 mkdir -p include/linux include/selinux include/linux/sched
 echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
-echo "#ifndef _LINUX_SELINUX_STATE_H
+cat > include/linux/selinux_state.h << 'EOF'
+#ifndef _LINUX_SELINUX_STATE_H
 #define _LINUX_SELINUX_STATE_H
-struct selinux_state { int dummy; int enforcing; }; extern struct selinux_state selinux_state; #endif" > include/linux/selinux_state.h
-echo "#ifndef _SELINUX_SELINUX_H
+#include <linux/types.h>
+struct selinux_state {
+    int dummy;
+    int enforcing;
+};
+extern struct selinux_state selinux_state;
+#endif
+EOF
+cat > include/selinux/selinux.h << 'EOF'
+#ifndef _SELINUX_SELINUX_H
 #define _SELINUX_SELINUX_H
-static inline int selinux_enabled(void) { return 1; } #endif" > include/selinux/selinux.h
+static inline int selinux_enabled(void) { return 1; }
+#endif
+EOF
 for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
-cat > drivers/kernelsu/core/ksu_stub_4_9.c << 'E'
+cat > drivers/kernelsu/core/ksu_stub_4_9.c << 'EOF'
 #include <linux/kernel.h>
 #include <linux/selinux_state.h>
 struct selinux_state selinux_state;
 void ksu_fs_hook_init(void) {} void ksu_allowlist_init(void) {} void ksu_app_profile_init(void) {} void ksu_syscall_hook_init(void) {} void ksu_sulog_init(void) {}
 int kpm_init(void) { return 0; }
-E
-cat > drivers/kernelsu/core/init.c << 'E'
+EOF
+cat > drivers/kernelsu/core/init.c << 'EOF'
 #include <linux/kernel.h>
-int kernelsu_init(void) { pr_info("SukiSU 3.2.4 #78 FIX 23.50\n"); return 0; } int __init ksu_init(void) { return kernelsu_init(); }
-E
+int kernelsu_init(void) { pr_info("SukiSU 3.2.4 FIX 00.02 V3\n"); return 0; }
+int __init ksu_init(void) { return kernelsu_init(); }
+EOF
 echo "obj-y += init.o ksu_stub_4_9.o" > drivers/kernelsu/core/Makefile
 cp drivers/kernelsu/core/Makefile drivers/kernelsu/core/Kbuild
 echo "obj-y += core/" > drivers/kernelsu/Makefile
