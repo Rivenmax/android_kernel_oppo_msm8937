@@ -37,7 +37,7 @@ extern void ksu_fs_hook_init(void);
 extern void ksu_allowlist_init(void);
 extern void ksu_app_profile_init(void);
 int kernelsu_init(void) {
-    pr_info("SukiSU Ultra v3.2.4 FOR 4.9 ONLY FULL REAL FIX 00.50\n");
+    pr_info("SukiSU Ultra v3.2.4 FOR 4.9 ONLY FULL REAL FIX 00.56 APT CLANG\n");
     ksu_fs_hook_init();
     ksu_allowlist_init();
     ksu_app_profile_init();
@@ -54,10 +54,9 @@ cat drivers/kernelsu/core/Makefile
 D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
 echo "CONFIG_KSU=y" >> $D; echo "CONFIG_KSU_MANUAL_HOOK=y" >> $D; echo "# CONFIG_KPM is not set" >> $D; echo "# CONFIG_DEBUG_INFO is not set" >> $D
 sudo apt-get update -q
-sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev lld
-git clone https://github.[STRIPPED 66 bytes] --depth=1 ~/clang || true
-export PATH=$HOME/clang/bin:/usr/bin:$PATH
-which clang; which ld.lld; ls ~/clang/bin/ | grep lld
+sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev lld clang
+export PATH=/usr/bin:$PATH
+which clang; clang --version; which ld.lld; ls -lh /usr/bin/ld.lld
 export ARCH=arm64
 make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
 ./scripts/config --file out/.config --disable CONFIG_CC_STACKPROTECTOR --disable CONFIG_CC_STACKPROTECTOR_STRONG --disable CONFIG_CC_STACKPROTECTOR_REGULAR --enable CONFIG_CC_STACKPROTECTOR_NONE
