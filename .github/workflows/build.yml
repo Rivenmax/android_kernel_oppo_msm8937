@@ -13,34 +13,31 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT FULL REAL FIX 14.42 sucompat.c
+      - name: BABAT FULL REAL FIX 14.54 syscall_hook arm64
         run: |
           echo "/* KPM DISABLED */" > drivers/kernelsu/core/kpm.c 2>/dev/null || true
           find drivers/kernelsu -name "*kpm*" -type f -exec sh -c 'echo "/* KPM DISABLED */" > "$1"' _ {} \; || true
           sed -i '/kpm/d' drivers/kernelsu/Makefile 2>/dev/null || true
           sed -i '/kpm/d' drivers/kernelsu/Kbuild 2>/dev/null || true
           
-          echo "=== BABAT feature/ SEMUA - FOTO 14.42 sucompat.c ==="
+          echo "=== BABAT feature/ SEMUA - sucompat.c ==="
           for f in drivers/kernelsu/feature/*.c; do
             [ -f "$f" ] && cat > "$f" << 'EOF'
           #include <linux/kernel.h>
           void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} void ksu_selinux_hide_init(void) {} void ksu_avc_spoof_init(void) {} void ksu_throne_tracker_init(void) {} void ksu_feature_init(void) {}
           EOF
-            echo "BABAT $f"
           done
           echo "obj-y :=" > drivers/kernelsu/feature/Makefile 2>/dev/null || true
           echo "obj-y :=" > drivers/kernelsu/feature/Kbuild 2>/dev/null || true
           
           for d in infra extension runtime selinux sulog supercall; do
-            for cf in drivers/kernelsu/$d/*.c; do
-              [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true
-            done
+            for cf in drivers/kernelsu/$d/*.c; do [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true; done
             for cf in drivers/kernelsu/$d/*/*.c; do [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true; done
             echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
             echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
           done
           
-          # FIX 14.11 - BABAT LSM_HOOK.C
+          echo "=== BABAT HOOK YANG ERROR 4.9 - FOTO 14.54 ==="
           cat > drivers/kernelsu/hook/lsm_hook.c << 'EOF'
           #include <linux/kernel.h>
           void ksu_lsm_hook_init(void) {} void ksu_lsm_hook_exit(void) {}
@@ -61,6 +58,26 @@ jobs:
           #include <linux/kernel.h>
           void ksu_tp_marker_init(void) {}
           EOF
+          # FIX 14.54 - BABAT arm64/syscall_hook.c YANG ERROR ksu_syscall_hook_fn
+          cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
+          #include <linux/kernel.h>
+          #include <linux/ptrace.h>
+          void ksu_syscall_hook_init(void) {}
+          void ksu_syscall_table_hook_init(void) {}
+          void ksu_syscall_table_hook(int nr, void *fn, void *old) {}
+          void ksu_syscall_table_unhook(int nr, void *old) {}
+          void ksu_register_syscall_hook(int nr, void *fn) {}
+          void ksu_unregister_syscall_hook(int nr) {}
+          void ksu_syscall_hook_exit(void) {}
+          long ksu_hook_setresuid(const struct pt_regs *regs) { return 0; }
+          typedef long (*syscall_fn_t)(const struct pt_regs *);
+          typedef long (*ksu_syscall_hook_fn)(const struct pt_regs *);
+          EOF
+          cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
+          #include <linux/kernel.h>
+          #include <linux/mm.h>
+          void ksu_patch_memory(void *a, void *b, size_t c) {} void ksu_memory_patch_init(void) {}
+          EOF
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -69,15 +86,10 @@ jobs:
           void ksu_syscall_table_hook(int nr, syscall_fn_t fn, syscall_fn_t *old); void ksu_syscall_table_unhook(int nr, syscall_fn_t *old); void ksu_syscall_table_hook_init(void); void ksu_syscall_hook_init(void); void ksu_register_syscall_hook(int nr, void *fn); void ksu_unregister_syscall_hook(int nr); void ksu_syscall_hook_exit(void);
           #endif
           EOF
-          cat > drivers/kernelsu/hook/arm64/patch_memory.c << 'EOF'
-          #include <linux/kernel.h>
-          #include <linux/mm.h>
-          void ksu_patch_memory(void *a, void *b, size_t c) {} void ksu_memory_patch_init(void) {}
-          EOF
           printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += lsm_hook.o\nobj-y += setuid_hook.o\nobj-y += syscall_event_bridge.o\nobj-y += syscall_hook_manager.o\nobj-y += tp_marker.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile
           printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += lsm_hook.o\nobj-y += setuid_hook.o\nobj-y += syscall_event_bridge.o\nobj-y += syscall_hook_manager.o\nobj-y += tp_marker.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild
-          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile
-          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
+          echo "obj-y += patch_memory.o\nobj-y += syscall_hook.o" > drivers/kernelsu/hook/arm64/Makefile
+          echo "obj-y += patch_memory.o\nobj-y += syscall_hook.o" > drivers/kernelsu/hook/arm64/Kbuild
           
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
@@ -105,7 +117,7 @@ jobs:
           EOF
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c 2>/dev/null || true
           grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += core/ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
-          echo "FULL REAL FIX 14.42 DONE - feature/ sucompat.c fixed"
+          echo "FULL REAL FIX 14.54 DONE - syscall_hook arm64 fixed"
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -115,7 +127,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-FULL-REAL-61-sucompat
+          key: clang-r536225-FULL-REAL-62-syscall-arm64
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -125,7 +137,7 @@ jobs:
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-      - name: Build Kernel FULL REAL FIX 14.42
+      - name: Build Kernel FULL REAL FIX 14.54
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -138,7 +150,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-FULL-REAL-61
+          name: build-log-FULL-REAL-62
           path: build.log
       - name: Make TWRP ZIP FULL REAL
         if: success()
