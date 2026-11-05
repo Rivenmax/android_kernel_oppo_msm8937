@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX selinux_state FOTO 08.31 bool
+      - name: BABAT TOTAL FIX duplicate selinux_state FOTO 09.04
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
@@ -35,14 +35,12 @@ jobs:
           void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
           EOF
           mkdir -p include/linux; echo "#include <linux/compiler.h>" > include/linux/compiler_types.h; printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h; printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
-          # FIX FOTO 08.31 - bool error
           cat > include/linux/selinux_state.h << 'EOF'
           #ifndef _LINUX_SELINUX_STATE_H
           #define _LINUX_SELINUX_STATE_H
           #include <linux/types.h>
           struct selinux_state { int dummy; int enforcing; };
           extern struct selinux_state selinux_state;
-          struct selinux_state selinux_state;
           #endif
           EOF
           mkdir -p include/linux/sched; for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
@@ -72,6 +70,8 @@ jobs:
           EOF
           cat > drivers/kernelsu/ksu_stub_4_9.c << 'EOF'
           #include <linux/kernel.h>
+          #include <linux/selinux_state.h>
+          struct selinux_state selinux_state;
           void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_fork(void *a) {} void ksu_handle_exit(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} bool ksu_is_ksud_should_umount(void) { return false; } void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {}
           EOF
           grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
@@ -84,7 +84,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto0831-bool-fix
+          key: clang-r536225-foto0904-duplicate
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
