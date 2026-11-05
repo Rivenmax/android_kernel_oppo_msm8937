@@ -1,11 +1,9 @@
 #!/bin/bash
 set -e
-echo "=== SukiSU Ultra v3.2.4 FOR 4.9 ONLY FULL REAL 26MB ==="
 curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-echo "=== HAPUS GKI 6.x YANG BIKIN 78x FAIL ==="
 git checkout -- security/ 2>/dev/null || true
 rm -rf drivers/kernelsu/feature drivers/kernelsu/infra drivers/kernelsu/extension drivers/kernelsu/runtime drivers/kernelsu/selinux drivers/kernelsu/sulog drivers/kernelsu/supercall drivers/kernelsu/manager drivers/kernelsu/policy drivers/kernelsu/hook 2>/dev/null || true
-find drivers/kernelsu -type f \( -name "*kpm*" -o -name "*avc_spoof*" -o -name "*throne*" -o -name "*kernel_umount*" -o -name "*selinux_hide*" -o -name "*seloader*" -o -name "*sucompat*" \) -exec sh -c 'echo "#include <linux/kernel.h>" > "$1"' _ {} \; 2>/dev/null || true
+find drivers/kernelsu -type f \( -name "*kpm*" -o -name "*avc_spoof*" -o -name "*throne*" \) -exec sh -c 'echo "#include <linux/kernel.h>" > "$1"' _ {} \; 2>/dev/null || true
 echo "obj-y += core/" > drivers/kernelsu/Makefile
 echo "obj-y += core/" > drivers/kernelsu/Kbuild
 mkdir -p include/linux include/selinux include/linux/sched
@@ -25,60 +23,41 @@ static inline int selinux_enabled(void) { return 1; }
 #endif
 EOF
 for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
-# STUB GKI 6.x CUMA BUAT LINKER!
 cat > drivers/kernelsu/core/ksu_stub_4_9.c << 'EOF'
 #include <linux/kernel.h>
 #include <linux/selinux_state.h>
 struct selinux_state selinux_state;
-void *ksu_sig_fallback_key; void *ksu_sig_fallback_current;
-void ksu_fs_hook_init(void) {} void ksu_fs_hook_exit(void) {}
-void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {}
-void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
-void ksu_syscall_hook_init(void) {} void ksu_syscall_hook_exit(void) {}
-void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {}
-int kpm_init(void) { return 0; } void kpm_exit(void) {} void kpm_load(void) {}
+void ksu_fs_hook_init(void) {} void ksu_allowlist_init(void) {} void ksu_app_profile_init(void) {} void ksu_syscall_hook_init(void) {} void ksu_sulog_init(void) {}
+int kpm_init(void) { return 0; }
 EOF
-# INIT FULL REAL 4.9 ONLY - MANGGIL FUNGSI REAL!
 cat > drivers/kernelsu/core/init.c << 'EOF'
 #include <linux/kernel.h>
 #include <linux/init.h>
 extern void ksu_fs_hook_init(void);
 extern void ksu_allowlist_init(void);
 extern void ksu_app_profile_init(void);
-extern void ksu_syscall_hook_init(void);
-extern void ksu_sulog_init(void);
 int kernelsu_init(void) {
-    pr_info("SukiSU Ultra v3.2.4 FOR 4.9 ONLY FULL REAL 26MB ROOT A57\n");
+    pr_info("SukiSU Ultra v3.2.4 FOR 4.9 ONLY FULL REAL FIX 00.50\n");
     ksu_fs_hook_init();
     ksu_allowlist_init();
     ksu_app_profile_init();
-    ksu_syscall_hook_init();
-    ksu_sulog_init();
-    pr_info("SukiSU 4.9 ONLY FULL REAL DONE\n");
     return 0;
 }
 void kernelsu_exit(void) {}
 int __init ksu_init(void) { return kernelsu_init(); }
 void __exit ksu_exit(void) {}
 EOF
-# AUTO MAKEFILE FULL REAL - SEMUA FILE CORE REAL YANG ADA!
-echo "=== CORE FILES 4.9 REAL ==="
-ls -1 drivers/kernelsu/core/*.c
 echo "obj-y += init.o ksu_stub_4_9.o" > drivers/kernelsu/core/Makefile
-for cf in drivers/kernelsu/core/*.c; do
-  bn=$(basename $cf .c)
-  case "$bn" in init|ksu_stub_4_9|kpm|avc_spoof|throne_tracker|kernel_umount|selinux_hide|seloader|sucompat) ;;
-  *) echo "obj-y += $bn.o" >> drivers/kernelsu/core/Makefile ;;
-  esac
-done
+for cf in drivers/kernelsu/core/*.c; do bn=$(basename $cf .c); case "$bn" in init|ksu_stub_4_9|kpm|avc_spoof|throne_tracker|kernel_umount|selinux_hide|seloader|sucompat) ;; *) echo "obj-y += $bn.o" >> drivers/kernelsu/core/Makefile ;; esac; done
 cp drivers/kernelsu/core/Makefile drivers/kernelsu/core/Kbuild
 cat drivers/kernelsu/core/Makefile
-# DEFCONFIG 4.9 ONLY
 D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
 echo "CONFIG_KSU=y" >> $D; echo "CONFIG_KSU_MANUAL_HOOK=y" >> $D; echo "# CONFIG_KPM is not set" >> $D; echo "# CONFIG_DEBUG_INFO is not set" >> $D
-sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
+sudo apt-get update -q
+sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev lld
 git clone https://github.[STRIPPED 66 bytes] --depth=1 ~/clang || true
-export PATH=$HOME/clang/bin:$PATH
+export PATH=$HOME/clang/bin:/usr/bin:$PATH
+which clang; which ld.lld; ls ~/clang/bin/ | grep lld
 export ARCH=arm64
 make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
 ./scripts/config --file out/.config --disable CONFIG_CC_STACKPROTECTOR --disable CONFIG_CC_STACKPROTECTOR_STRONG --disable CONFIG_CC_STACKPROTECTOR_REGULAR --enable CONFIG_CC_STACKPROTECTOR_NONE
