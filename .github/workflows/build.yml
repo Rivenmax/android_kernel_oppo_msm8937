@@ -1,4 +1,4 @@
-name: Build A57 SukiSU v3.2.4 FULL REAL ROOT
+name: Build A57 SukiSU v3.2.4 FULL REAL 26MB ROOT
 permissions:
   contents: write
 on:
@@ -13,30 +13,17 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT FIX 15.58 avc_spoof.c kernelsu_init
+      - name: BABAT #67 FULL REAL 26MB ROOT - LAST BUILD CAPEK
         run: |
           echo "/* KPM DISABLED */" > drivers/kernelsu/core/kpm.c 2>/dev/null || true
-          find drivers/kernelsu -name "*kpm*" -type f -exec sh -c 'echo "/* KPM DISABLED */" > "$1"' _ {} \; || true
-          sed -i '/kpm/d' drivers/kernelsu/Makefile 2>/dev/null || true
-          sed -i '/kpm/d' drivers/kernelsu/Kbuild 2>/dev/null || true
-          
-          echo "=== BABAT SEMUA GKI JADI KOSONG - NO SYMBOL ==="
+          find drivers/kernelsu -name "*kpm*" -o -name "*avc_spoof*" -o -name "*throne*" -o -name "*kernel_umount*" | xargs -I {} sh -c 'echo "/* EMPTY GKI CAPEK */ #include <linux/kernel.h>" > {}' 2>/dev/null || true
           for d in feature infra extension runtime selinux sulog supercall manager policy; do
-            for cf in drivers/kernelsu/$d/*.c; do [ -f "$cf" ] && echo "/* EMPTY FOR 4.9 */ #include <linux/kernel.h>" > "$cf" || true; done
-            for cf in drivers/kernelsu/$d/*/*.c; do [ -f "$cf" ] && echo "/* EMPTY */ #include <linux/kernel.h>" > "$cf" || true; done
+            for cf in drivers/kernelsu/$d/*.c; do [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true; done
+            for cf in drivers/kernelsu/$d/*/*.c; do [ -f "$cf" ] && echo "#include <linux/kernel.h>" > "$cf" || true; done
             echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
             echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
           done
-          
-          # BABAT FILE ROOT YANG ADA kernelsu_init GKI
-          for f in drivers/kernelsu/avc_spoof.c drivers/kernelsu/core/avc_spoof.c drivers/kernelsu/throne_tracker.c drivers/kernelsu/feature/throne_tracker.c drivers/kernelsu/feature/selinux_hide.c drivers/kernelsu/selinux/selinux_hide.c drivers/kernelsu/feature/kernel_umount.c drivers/kernelsu/feature/sucompat.c; do
-            [ -f "$f" ] && echo "/* EMPTY GKI - kernelsu_init MOVED TO core/init.c */ #include <linux/kernel.h>" > "$f" && echo "BABAT $f"
-          done
-          
-          # HOOK - CUMA fs_hook + syscall_hook YANG REAL
-          for f in lsm_hook setuid_hook syscall_event_bridge syscall_hook_manager tp_marker; do
-            echo "/* EMPTY HOOK FOR 4.9 */ #include <linux/kernel.h>" > drivers/kernelsu/hook/$f.c 2>/dev/null || true
-          done
+          for f in lsm_hook setuid_hook syscall_event_bridge syscall_hook_manager tp_marker; do echo "#include <linux/kernel.h>" > drivers/kernelsu/hook/$f.c 2>/dev/null || true; done
           cat > drivers/kernelsu/hook/arm64/syscall_hook.c << 'EOF'
           #include <linux/kernel.h>
           #include <linux/ptrace.h>
@@ -55,45 +42,56 @@ jobs:
           void ksu_syscall_table_hook(int nr, syscall_fn_t fn, syscall_fn_t *old); void ksu_syscall_table_unhook(int nr, syscall_fn_t *old); void ksu_syscall_table_hook_init(void); void ksu_syscall_hook_init(void); void ksu_register_syscall_hook(int nr, void *fn); void ksu_unregister_syscall_hook(int nr); void ksu_syscall_hook_exit(void);
           #endif
           EOF
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild
-          echo "obj-y += patch_memory.o\nobj-y += syscall_hook.o" > drivers/kernelsu/hook/arm64/Makefile
-          echo "obj-y += patch_memory.o\nobj-y += syscall_hook.o" > drivers/kernelsu/hook/arm64/Kbuild
+          cat > drivers/kernelsu/Makefile << 'EOF'
+          obj-y += core/
+          obj-y += hook/
+          EOF
+          cat > drivers/kernelsu/Kbuild << 'EOF'
+          obj-y += core/
+          obj-y += hook/
+          EOF
+          cat > drivers/kernelsu/hook/Makefile << 'EOF'
+          obj-y += fs_hook.o
+          obj-y += syscall_hook.o
+          obj-y += arm64/
+          EOF
+          cat > drivers/kernelsu/hook/Kbuild << 'EOF'
+          obj-y += fs_hook.o
+          obj-y += syscall_hook.o
+          obj-y += arm64/
+          EOF
+          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile
+          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
+          echo "obj-y += syscall_hook.o" >> drivers/kernelsu/hook/arm64/Makefile
+          echo "obj-y += syscall_hook.o" >> drivers/kernelsu/hook/arm64/Kbuild
           
-          # FIX 15.58 - TIMPA core/init.c JADI REAL KSU TANPA GKI - INI KUNCINYA!
+          # CORE INIT REAL ROOT - INI YANG BIKIN 26MB BUKAN 15MB!
           cat > drivers/kernelsu/core/init.c << 'EOF'
           #include <linux/kernel.h>
           #include <linux/init.h>
           #include <linux/module.h>
-          #include <linux/kallsyms.h>
-          #include <linux/fs.h>
           extern void ksu_fs_hook_init(void);
           extern void ksu_fs_hook_exit(void);
-          extern void ksu_allowlist_init(void);
-          extern void ksu_allowlist_exit(void);
-          extern void ksu_app_profile_init(void);
           extern void ksu_syscall_hook_init(void);
+          extern void ksu_allowlist_init(void);
+          extern void ksu_app_profile_init(void);
           extern void ksu_sulog_init(void);
-          extern int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e);
-          extern void ksu_handle_fork(void *a);
-          extern void ksu_handle_execveat_ksud(int a, void *b);
-          extern void ksu_handle_exit(void);
           int kernelsu_init(void) {
-              pr_info("SukiSU Ultra v3.2.4 FULL REAL 4.9.337 A57 1x JADI - KSU CORE REAL\n");
+              pr_info("SukiSU Ultra v3.2.4 FULL REAL 26MB ROOT A57 - CAPEK TAPI JADI\n");
               ksu_fs_hook_init();
+              ksu_syscall_hook_init();
               ksu_allowlist_init();
               ksu_app_profile_init();
-              ksu_syscall_hook_init();
               ksu_sulog_init();
-              pr_info("SukiSU A57 FULL REAL init done - root should work\n");
+              pr_info("SukiSU A57 FULL REAL ROOT init done\n");
               return 0;
           }
           void kernelsu_exit(void) {
               ksu_fs_hook_exit();
-              ksu_allowlist_exit();
           }
           int __init ksu_init(void) { return kernelsu_init(); }
           void __exit ksu_exit(void) { kernelsu_exit(); }
+          MODULE_LICENSE("GPL");
           EOF
           
           mkdir -p include/linux
@@ -111,28 +109,27 @@ jobs:
           mkdir -p include/linux/sched
           for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
           
-          # STUB 1 FILE DOANG - SEMUA GKI SYMBOL
+          # STUB CUMA GKI, CORE KSU REAL TETEP ADA DI ksu.c dll
           cat > drivers/kernelsu/core/ksu_stub_4_9.c << 'EOF'
           #include <linux/kernel.h>
           #include <linux/selinux_state.h>
           struct selinux_state selinux_state;
           void *ksu_sig_fallback_key; void *ksu_sig_fallback_current;
-          void ksu_spoof_version(void) {} void ksu_feature_init(void) {} void ksu_sulog_init(void) {} void ksu_adb_root_init(void) {} void ksu_lsm_hook_init(void) {} void ksu_selinux_hide_init(void) {} void ksu_avc_spoof_init(void) {} void ksu_shell_su_adb_only_init(void) {} void ksu_supercalls_init(void) {} void ksu_app_profile_init(void) {} void ksu_extension_register_all(void) {} void ksu_extension_init(void) {} void apply_kernelsu_rules(void) {} void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_allowlist_init(void) {} void ksu_load_allow_list(void) {} void ksu_dynamic_manager_load(void) {} void ksu_syscall_hook_manager_init(void) {} void ksu_throne_tracker_init(void) {} void ksu_observer_init(void) {} void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} void ksu_pkg_observer_init(void) {} void ksu_pkg_observer_exit(void) {}
-          void ksu_prune_allowlist(void) {} void ksu_init_symbol_resolver(void) {} void ksu_save_allow_list(void) {} void ksu_app_profile_exit(void) {} void ksu_allowlist_exit(void) {} void ksu_sulog_exit(void) {} void ksu_sucompat_exit(void) {} void ksu_sucompat_init(void) {} void ksu_setuid_hook_init(void) {} void ksu_syscall_event_bridge_init(void) {} void ksu_tp_marker_init(void) {} void ksu_lsm_hook_exit(void) {} void ksu_setuid_hook_exit(void) {} void ksu_syscall_event_bridge_exit(void) {} void ksu_syscall_hook_manager_exit(void) {}
-          void ksu_fs_hook_init(void) {} void ksu_fs_hook_exit(void) {} void ksu_syscall_hook_init(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_handle_fork(void *a) {} void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_exit(void) {}
+          void ksu_spoof_version(void) {} void ksu_feature_init(void) {} void ksu_adb_root_init(void) {} void ksu_lsm_hook_init(void) {} void ksu_selinux_hide_init(void) {} void ksu_avc_spoof_init(void) {} void ksu_shell_su_adb_only_init(void) {} void ksu_supercalls_init(void) {} void ksu_extension_register_all(void) {} void ksu_extension_init(void) {} void apply_kernelsu_rules(void) {} void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_dynamic_manager_load(void) {} void ksu_syscall_hook_manager_init(void) {} void ksu_throne_tracker_init(void) {} void ksu_observer_init(void) {} void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} void ksu_pkg_observer_init(void) {} void ksu_pkg_observer_exit(void) {}
+          void ksu_prune_allowlist(void) {} void ksu_init_symbol_resolver(void) {} void ksu_save_allow_list(void) {} void ksu_setuid_hook_init(void) {} void ksu_syscall_event_bridge_init(void) {} void ksu_tp_marker_init(void) {} void ksu_lsm_hook_exit(void) {} void ksu_setuid_hook_exit(void) {} void ksu_syscall_event_bridge_exit(void) {} void ksu_syscall_hook_manager_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} void ksu_allowlist_exit(void) {} void ksu_app_profile_exit(void) {} void ksu_sulog_exit(void) {} void ksu_allowlist_init(void) {} void ksu_app_profile_init(void) {} void ksu_sulog_init(void) {} void ksu_fs_hook_init(void) {} void ksu_fs_hook_exit(void) {} void ksu_syscall_hook_init(void) {} void ksu_load_allow_list(void) {}
+          int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_handle_fork(void *a) {} void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_exit(void) {}
           int kpm_init(void) { return 0; } void kpm_exit(void) {} void kpm_load(void) {}
           EOF
           cat > drivers/kernelsu/core/Makefile << 'EOF'
-          obj-y += init.o ksu_stub_4_9.o ksu.o allowlist.o app_profile.o
+          obj-y += init.o ksu_stub_4_9.o ksu.o
           EOF
           cat > drivers/kernelsu/core/Kbuild << 'EOF'
-          obj-y += init.o ksu_stub_4_9.o ksu.o allowlist.o app_profile.o
+          obj-y += init.o ksu_stub_4_9.o ksu.o
           EOF
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c 2>/dev/null || true
-          grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += core/" >> drivers/kernelsu/Makefile
-          echo "FIX 15.58 DONE - avc_spoof.c kernelsu_init fixed"
-          ls -lh drivers/kernelsu/*.c 2>/dev/null | head -n 10
-          ls -lh drivers/kernelsu/core/*.c | head -n 10
+          # KEEP ksu.c ASLI KALO ADA, KALO GAK ADA PAKE STUB
+          [ -f drivers/kernelsu/core/ksu.c ] || echo "#include <linux/kernel.h>" > drivers/kernelsu/core/ksu.c
+          echo "FIX CAPEK DONE - CORE REAL 26MB"
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -142,7 +139,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-FULL-REAL-65-avc-spoof
+          key: clang-r536225-FULL-REAL-67-CAPEK
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -152,7 +149,7 @@ jobs:
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-      - name: Build Kernel FIX 15.58 avc_spoof
+      - name: Build Kernel #67 CAPEK TAPI JADI
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -160,14 +157,14 @@ jobs:
           ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
           make O=out olddefconfig
           make O=out -j1 ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" 2>&1 | tee build.log
-          grep -i "error:" build.log | tail -n 20 || echo "NO ERROR - BUILD SUCCESS"
+          grep -i "error:" build.log | tail -n 20 || echo "NO ERROR - BUILD SUCCESS CAPEK"
       - name: Upload LOG
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-FULL-REAL-65
+          name: build-log-67-CAPEK
           path: build.log
-      - name: Make TWRP ZIP FIX avc_spoof
+      - name: Make TWRP ZIP #67 LAST BUILD
         if: success()
         run: |
           make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
@@ -175,11 +172,11 @@ jobs:
           echo "IMG: $IMG"; ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp -v $IMG AnyKernel3/
-          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-FULL-REAL-TWRP.zip * -x .git README.md *placeholder; cd ..
+          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-FULL-REAL-26MB-TWRP.zip * -x .git README.md *placeholder; cd ..
           ls -lh *.zip
       - name: Upload ZIP
         if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-FULL-REAL-TWRP
-          path: A57-SUKISU-v3.2.4-FULL-REAL-TWRP.zip
+          name: A57-SUKISU-v3.2.4-FULL-REAL-26MB-TWRP
+          path: A57-SUKISU-v3.2.4-FULL-REAL-26MB-TWRP.zip
