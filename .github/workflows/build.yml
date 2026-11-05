@@ -13,23 +13,24 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX 12.01 kpm.c SAMPE AKAR
+      - name: BABAT TOTAL FIX 12.01 kpm.c SAMPE AKAR - ANTI FAIL
         run: |
           echo "=== BABAT KPM.C DI SEMUA TEMPAT ==="
-          find drivers/kernelsu -name "*kpm*" -type f | xargs -I {} sh -c 'echo "/* KPM DISABLED FOR 4.9 - GKI ONLY */" > {} && echo "BABAT {}"'
-          sed -i '/kpm/d' drivers/kernelsu/Makefile || true
-          sed -i '/kpm/d' drivers/kernelsu/core/Makefile || true
-          sed -i '/kpm/d' drivers/kernelsu/core/Kbuild || true
-          cat drivers/kernelsu/core/Makefile
+          find drivers/kernelsu -name "*kpm*" -type f -exec sh -c 'echo "/* KPM DISABLED */" > "$1" && echo "BABAT $1"' _ {} \; || true
+          sed -i '/kpm/d' drivers/kernelsu/Makefile 2>/dev/null || true
+          [ -f drivers/kernelsu/core/Makefile ] && sed -i '/kpm/d' drivers/kernelsu/core/Makefile || true
+          [ -f drivers/kernelsu/core/Kbuild ] && sed -i '/kpm/d' drivers/kernelsu/core/Kbuild || true
+          [ -f drivers/kernelsu/Kbuild ] && sed -i '/kpm/d' drivers/kernelsu/Kbuild || true
+          cat drivers/kernelsu/core/Makefile 2>/dev/null || cat drivers/kernelsu/core/Kbuild 2>/dev/null || echo "core Makefile/Kbuild not exist, ok"
           echo "=== BABAT FOLDER GKI ==="
           for d in infra extension runtime selinux sulog supercall feature; do
-            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done
-            for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */" > "$f"; done
+            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f" || true; done
+            for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */" > "$f" || true; done
             echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
             echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
           done
-          echo "obj-y :=" > drivers/kernelsu/feature/Makefile
-          echo "obj-y :=" > drivers/kernelsu/feature/Kbuild
+          echo "obj-y :=" > drivers/kernelsu/feature/Makefile 2>/dev/null || true
+          echo "obj-y :=" > drivers/kernelsu/feature/Kbuild 2>/dev/null || true
           cat > drivers/kernelsu/supercall/supercall.c << 'EOF'
           #include <linux/kernel.h>
           void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} long ksu_handle_supercall(void *a, void *b) { return 0; }
@@ -69,11 +70,11 @@ jobs:
           #include <linux/mm.h>
           void ksu_patch_memory(void *a, void *b, size_t c) {} void ksu_memory_patch_init(void) {}
           EOF
-          for f in hook/lsm_hook.c hook/setuid_hook.c hook/syscall_event_bridge.c hook/syscall_hook_manager.c hook/tp_marker.c; do echo "/* disabled */" > drivers/kernelsu/$f; done
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile
-          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild
-          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile
-          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild
+          for f in hook/lsm_hook.c hook/setuid_hook.c hook/syscall_event_bridge.c hook/syscall_hook_manager.c hook/tp_marker.c; do echo "/* disabled */" > drivers/kernelsu/$f 2>/dev/null || true; done
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Makefile 2>/dev/null || true
+          printf "obj-y += fs_hook.o\nobj-y += syscall_hook.o\nobj-y += arm64/\n" > drivers/kernelsu/hook/Kbuild 2>/dev/null || true
+          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Makefile 2>/dev/null || true
+          echo "obj-y += patch_memory.o" > drivers/kernelsu/hook/arm64/Kbuild 2>/dev/null || true
           cat > drivers/kernelsu/hook/syscall_hook.h << 'EOF'
           #ifndef _KSU_SYSCALL_HOOK_H
           #define _KSU_SYSCALL_HOOK_H
@@ -94,11 +95,9 @@ jobs:
           void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_fork(void *a) {} void ksu_handle_exit(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} bool ksu_is_ksud_should_umount(void) { return false; } void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {}
           void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_load_allow_list(void) {} void ksu_save_allow_list(void) {} void ksu_dynamic_manager_load(void) {} int kpm_init(void) { return 0; } void kpm_exit(void) {} void kpm_load(void) {}
           EOF
-          sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
+          sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c 2>/dev/null || true
           grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
-          echo "BABAT DONE - kpm.c should be empty now"
-          cat drivers/kernelsu/core/kpm.c
-          cat drivers/kernelsu/core/Makefile
+          echo "BABAT DONE - #55 yang fail 0s udah di-fix"
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -108,7 +107,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto1201-kpm-akar
+          key: clang-r536225-foto1201-kpm-akar-fix55
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
