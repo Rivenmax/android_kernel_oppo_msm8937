@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX selinux_state FOTO 01.02
+      - name: BABAT TOTAL FIX selinux_state FOTO 08.31 bool
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
           for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
@@ -35,10 +35,12 @@ jobs:
           void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
           EOF
           mkdir -p include/linux; echo "#include <linux/compiler.h>" > include/linux/compiler_types.h; printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h; printf "#ifndef _LINUX_MINMAX_H\n#define _LINUX_MINMAX_H\n#include <linux/kernel.h>\n#endif\n" > include/linux/minmax.h
+          # FIX FOTO 08.31 - bool error
           cat > include/linux/selinux_state.h << 'EOF'
           #ifndef _LINUX_SELINUX_STATE_H
           #define _LINUX_SELINUX_STATE_H
-          struct selinux_state { int dummy; bool enforcing; };
+          #include <linux/types.h>
+          struct selinux_state { int dummy; int enforcing; };
           extern struct selinux_state selinux_state;
           struct selinux_state selinux_state;
           #endif
@@ -82,7 +84,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto0736
+          key: clang-r536225-foto0831-bool-fix
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
