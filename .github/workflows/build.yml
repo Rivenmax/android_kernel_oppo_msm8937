@@ -1,4 +1,4 @@
-name: Build A57 SukiSU v3.2.4 HYBRID FIX selinux.h 22.36
+name: Build A57 SukiSU v3.2.4 FIX 22.49 RESTORE objsec.h
 permissions:
   contents: write
 on:
@@ -13,8 +13,13 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT FIX 22.36 selinux/selinux.h not found
+      - name: BABAT FIX 22.49 RESTORE security/selinux
         run: |
+          # RESTORE FILE YANG GUE RUSAK DI #76!
+          git checkout -- security/selinux/include/objsec.h 2>/dev/null || true
+          git checkout -- security/selinux/ 2>/dev/null || true
+          git checkout -- include/linux/selinux_state.h 2>/dev/null || true
+          
           for f in $(find drivers/kernelsu -type f -name "*.c" | grep -E "kpm|avc_spoof|throne|kernel_umount|selinux_hide|seloader|sucompat|tp_marker|lsm_hook|setuid_hook|syscall_event|syscall_manager|lto|kernel_umount|app_ops"); do
             echo "#include <linux/kernel.h>" > "$f"
           done
@@ -50,21 +55,8 @@ jobs:
           mkdir -p include/linux/sched
           for h in task_stack signal task mm user; do echo "#include <linux/sched.h>" > include/linux/sched/$h.h; done
           
-          # FIX 22.36 - BIKIN selinux/selinux.h PALSU!
-          mkdir -p include/selinux
-          cat > include/selinux/selinux.h << 'EOF'
-          #ifndef _SELINUX_SELINUX_H
-          #define _SELINUX_SELINUX_H
-          #include <linux/selinux_state.h>
-          #include <linux/security.h>
-          static inline int selinux_enabled(void) { return 1; }
-          static inline int selinux_enforcing(void) { return selinux_state.enforcing; }
-          #define SELINUX_ENFORCING 1
-          #endif
-          EOF
-          mkdir -p security/selinux/include
-          cp include/selinux/selinux.h security/selinux/include/ 2>/dev/null || true
-          echo "#include <linux/kernel.h>" > security/selinux/include/objsec.h 2>/dev/null || true
+          # JANGAN BIKIN include/selinux/selinux.h LAGI! ITU YANG BIKIN TABRAKAN!
+          rm -rf include/selinux 2>/dev/null || true
           
           cat > drivers/kernelsu/core/ksu_stub_4_9.c << 'EOF'
           #include <linux/kernel.h>
@@ -82,7 +74,7 @@ jobs:
           #include <linux/kernel.h>
           #include <linux/init.h>
           int kernelsu_init(void) {
-              pr_info("SukiSU Ultra v3.2.4 FIX 22.36 selinux.h - IJO LAGI\n");
+              pr_info("SukiSU Ultra v3.2.4 FIX 22.49 RESTORE objsec.h - IJO LAGI #77\n");
               return 0;
           }
           void kernelsu_exit(void) {}
@@ -93,8 +85,9 @@ jobs:
           echo "obj-y += init.o" > drivers/kernelsu/core/Makefile
           echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/core/Makefile
           cp drivers/kernelsu/core/Makefile drivers/kernelsu/core/Kbuild
-          cat drivers/kernelsu/core/Makefile
-          ls include/selinux/
+          echo "=== RESTORE DONE ==="
+          ls security/selinux/include/objsec.h
+          cat security/selinux/include/objsec.h | head -n 20
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -104,7 +97,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-FIX-2236-76
+          key: clang-r536225-FIX-2249-77-RESTORE
       - name: Download Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -114,7 +107,7 @@ jobs:
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
           echo "$HOME/clang/bin" >> $GITHUB_PATH
-      - name: Build Kernel FIX 22.36
+      - name: Build Kernel FIX 22.49 RESTORE
         run: |
           export ARCH=arm64
           make O=out lineageos_A57_defconfig || make O=out lineageos_R9s_defconfig
@@ -127,9 +120,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-76-FIX-2236
+          name: build-log-77-RESTORE-2249
           path: build.log
-      - name: Make TWRP ZIP FIX 22.36
+      - name: Make TWRP ZIP FIX 22.49 RESTORE
         if: success()
         run: |
           make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
@@ -137,11 +130,11 @@ jobs:
           echo "IMG: $IMG"; ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
           cp -v $IMG AnyKernel3/
-          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-TWRP-FIX-2236.zip * -x .git README.md *placeholder; cd ..
+          cd AnyKernel3; zip -r9 ../A57-SUKISU-v3.2.4-TWRP-FIX-2249-RESTORE.zip * -x .git README.md *placeholder; cd ..
           ls -lh *.zip
       - name: Upload ZIP
         if: success()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-TWRP-FIX-2236
-          path: A57-SUKISU-v3.2.4-TWRP-FIX-2236.zip
+          name: A57-SUKISU-v3.2.4-TWRP-FIX-2249-RESTORE
+          path: A57-SUKISU-v3.2.4-TWRP-FIX-2249-RESTORE.zip
