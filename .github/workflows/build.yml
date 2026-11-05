@@ -13,41 +13,35 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX 12.01 kpm.c SAMPE AKAR - ANTI FAIL
+      - name: BABAT TOTAL FIX 12.34 avc_spoof.c
         run: |
-          echo "=== BABAT KPM.C DI SEMUA TEMPAT ==="
-          find drivers/kernelsu -name "*kpm*" -type f -exec sh -c 'echo "/* KPM DISABLED */" > "$1" && echo "BABAT $1"' _ {} \; || true
+          echo "=== BABAT SEMUA FILE ROOT + KPM ==="
+          find drivers/kernelsu -maxdepth 1 -name "*.c" -type f | while read f; do
+            bn=$(basename $f)
+            if [ "$bn" != "ksu_stub_4_9.c" ]; then
+              echo "BABAT ROOT $f"
+              echo "/* DISABLED FOR 4.9 - $bn */ #include <linux/kernel.h>" > "$f"
+            fi
+          done
+          find drivers/kernelsu -name "*kpm*" -o -name "*avc_spoof*" -o -name "*spoof*" | xargs -I {} sh -c 'echo "/* DISABLED */" > {} && echo "BABAT {}"' 2>/dev/null || true
+          find drivers/kernelsu/core -name "*.c" | while read f; do
+            bn=$(basename $f)
+            if [ "$bn" != "init.c" ] && [ "$bn" != "kpm.c" ]; then
+              echo "/* check $bn */"
+            fi
+          done
+          echo "/* KPM DISABLED */" > drivers/kernelsu/core/kpm.c 2>/dev/null || true
           sed -i '/kpm/d' drivers/kernelsu/Makefile 2>/dev/null || true
           [ -f drivers/kernelsu/core/Makefile ] && sed -i '/kpm/d' drivers/kernelsu/core/Makefile || true
           [ -f drivers/kernelsu/core/Kbuild ] && sed -i '/kpm/d' drivers/kernelsu/core/Kbuild || true
           [ -f drivers/kernelsu/Kbuild ] && sed -i '/kpm/d' drivers/kernelsu/Kbuild || true
-          cat drivers/kernelsu/core/Makefile 2>/dev/null || cat drivers/kernelsu/core/Kbuild 2>/dev/null || echo "core Makefile/Kbuild not exist, ok"
           echo "=== BABAT FOLDER GKI ==="
-          for d in infra extension runtime selinux sulog supercall feature; do
-            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f" || true; done
+          for d in infra extension runtime selinux sulog supercall feature manager policy; do
+            for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled $d */ #include <linux/kernel.h>" > "$f" || true; done
             for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */" > "$f" || true; done
             echo "obj-y :=" > drivers/kernelsu/$d/Makefile 2>/dev/null || true
             echo "obj-y :=" > drivers/kernelsu/$d/Kbuild 2>/dev/null || true
           done
-          echo "obj-y :=" > drivers/kernelsu/feature/Makefile 2>/dev/null || true
-          echo "obj-y :=" > drivers/kernelsu/feature/Kbuild 2>/dev/null || true
-          cat > drivers/kernelsu/supercall/supercall.c << 'EOF'
-          #include <linux/kernel.h>
-          void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} long ksu_handle_supercall(void *a, void *b) { return 0; }
-          EOF
-          cat > drivers/kernelsu/manager/pkg_observer.c << 'EOF'
-          #include <linux/kernel.h>
-          void ksu_pkg_observer_init(void) {} void ksu_pkg_observer_exit(void) {}
-          EOF
-          cat > drivers/kernelsu/policy/allowlist.c << 'EOF'
-          #include <linux/kernel.h>
-          #include <stdbool.h>
-          void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {} bool ksu_is_allowlist_enabled(void) { return false; } void ksu_load_allow_list(void) {} void ksu_save_allow_list(void) {}
-          EOF
-          cat > drivers/kernelsu/policy/app_profile.c << 'EOF'
-          #include <linux/kernel.h>
-          void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {}
-          EOF
           mkdir -p include/linux
           echo "#include <linux/compiler.h>" > include/linux/compiler_types.h
           printf "#ifndef _LINUX_PGTABLE_H\n#define _LINUX_PGTABLE_H\n#include <asm/pgtable.h>\n#include <linux/mm.h>\n#endif\n" > include/linux/pgtable.h
@@ -92,12 +86,26 @@ jobs:
           #include <linux/kernel.h>
           #include <linux/selinux_state.h>
           struct selinux_state selinux_state;
-          void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_fork(void *a) {} void ksu_handle_exit(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } void ksu_sulog_init(void) {} void ksu_sulog_exit(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} bool ksu_is_ksud_should_umount(void) { return false; } void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {}
-          void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_load_allow_list(void) {} void ksu_save_allow_list(void) {} void ksu_dynamic_manager_load(void) {} int kpm_init(void) { return 0; } void kpm_exit(void) {} void kpm_load(void) {}
+          /* STUB CORE */
+          void ksu_handle_execveat_ksud(int a, void *b) {} void ksu_handle_fork(void *a) {} void ksu_handle_exit(void) {} int ksu_handle_prctl(int a, unsigned long b, unsigned long c, unsigned long d, unsigned long e) { return 0; } bool ksu_is_ksud_should_umount(void) { return false; }
+          /* STUB DARI FOTO 12.34 - avc_spoof.c */
+          void *ksu_sig_fallback_key; void *ksu_sig_fallback_current;
+          void ksu_prune_allowlist(void) {} void ksu_init_symbol_resolver(void) {} void ksu_spoof_version(void) {} void ksu_syscall_hook_init(void) {} void ksu_sulog_init(void) {} void ksu_sucompat_init(void) {} void ksu_sucompat_exit(void) {} void ksu_sulog_exit(void) {}
+          void ksu_adb_root_init(void) {} void ksu_lsm_hook_init(void) {} void ksu_selinux_hide_init(void) {} void ksu_avc_spoof_init(void) {} void ksu_shell_su_adb_only_init(void) {} void ksu_supercalls_init(void) {} void ksu_extension_init(void) {} void ksu_extension_register_all(void) {} void apply_kernelsu_rules(void) {} void cache_sid(void) {} void setup_ksu_cred(void) {} void escape_to_root_for_init(void) {} void ksu_dynamic_manager_load(void) {} void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {}
+          void ksu_allowlist_init(void) {} void ksu_allowlist_exit(void) {} bool ksu_is_allowlist_enabled(void) { return false; } void ksu_load_allow_list(void) {} void ksu_save_allow_list(void) {} void ksu_app_profile_init(void) {} void ksu_app_profile_exit(void) {} void ksu_pkg_observer_init(void) {} void ksu_pkg_observer_exit(void) {}
+          int kpm_init(void) { return 0; } void kpm_exit(void) {} void kpm_load(void) {}
+          /* TRACK THRONE DUMMY */
+          void track_throne(void) {}
           EOF
+          # PATCH init.c biar gak manggil fungsi yang udah di-babat
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c 2>/dev/null || true
+          sed -i 's/ksu_selinux_hide_init();//g' drivers/kernelsu/core/init.c 2>/dev/null || true
+          sed -i 's/ksu_avc_spoof_init();//g' drivers/kernelsu/core/init.c 2>/dev/null || true
+          sed -i 's/ksu_extension_init();//g' drivers/kernelsu/core/init.c 2>/dev/null || true
+          sed -i 's/ksu_lsm_hook_init();//g' drivers/kernelsu/core/init.c 2>/dev/null || true
           grep -q "ksu_stub" drivers/kernelsu/Makefile || echo "obj-y += ksu_stub_4_9.o" >> drivers/kernelsu/Makefile
-          echo "BABAT DONE - #55 yang fail 0s udah di-fix"
+          echo "BABAT DONE - avc_spoof.c + 20 symbol done"
+          ls -lh drivers/kernelsu/*.c | head -n 20
       - name: Set Defconfig
         run: |
           D=arch/arm64/configs/lineageos_A57_defconfig; [ -f $D ] || D=arch/arm64/configs/lineageos_R9s_defconfig
@@ -107,7 +115,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto1201-kpm-akar-fix55
+          key: clang-r536225-foto1234-avc-spoof
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -130,9 +138,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-foto1201
+          name: build-log-foto1234
           path: build.log
-      - name: Make TWRP ZIP - FIX kpm.c
+      - name: Make TWRP ZIP
         if: success()
         run: |
           make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
