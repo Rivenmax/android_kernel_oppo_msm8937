@@ -13,10 +13,10 @@ jobs:
           fetch-depth: 0
       - name: Patch SukiSU v3.2.4
         run: curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s v3.2.4
-      - name: BABAT TOTAL FIX selinux_state FOTO 10.31
+      - name: BABAT TOTAL FIX selinux_state
         run: |
           sed -i '/MODULE_IMPORT_NS/d' drivers/kernelsu/core/init.c || true
-          for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled for 4.9.337 */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
+          for d in infra extension runtime selinux sulog supercall; do for f in drivers/kernelsu/$d/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; for f in drivers/kernelsu/$d/*/*.c; do [ -f "$f" ] && echo "/* disabled */ #include <linux/kernel.h>" > "$f"; done; echo "obj-y :=" > drivers/kernelsu/$d/Makefile; echo "obj-y :=" > drivers/kernelsu/$d/Kbuild; done
           cat > drivers/kernelsu/supercall/supercall.c << 'EOF'
           #include <linux/kernel.h>
           void ksu_supercall_init(void) {} void ksu_supercall_exit(void) {} long ksu_handle_supercall(void *a, void *b) { return 0; }
@@ -91,12 +91,12 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/clang
-          key: clang-r536225-foto1031-full-final
+          key: clang-r536225-final-image-fix
       - name: Download Clang FULL MIRROR
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           rm -rf $HOME/clang; mkdir -p $HOME/clang
-          git clone https://github.[STRIPPED 66 bytes] --depth=1 $HOME/clang || { rm -rf $HOME/clang; git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang; }
+          git clone https://github.com/LineageOS/android_prebuilts_clang_host_linux-x86_clang-r536225 --depth=1 $HOME/clang || { rm -rf $HOME/clang; git clone https://github.com/kdrag0n/proton-clang --depth=1 $HOME/clang; }
       - name: Setup Toolchains
         run: |
           sudo apt-get update -q; sudo apt-get install -y -q gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi bc bison flex libssl-dev libelf-dev
@@ -109,23 +109,25 @@ jobs:
           ./scripts/config --file out/.config --disable CONFIG_DEBUG_INFO --disable CONFIG_DEBUG_INFO_DWARF4
           make O=out olddefconfig
           make O=out -j$(nproc) ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h"
-      - name: Make TWRP ZIP - FIX cp missing 10.31
+      - name: Make TWRP ZIP - FIX Image not found FINAL
         if: always()
         run: |
-          echo "=== Build Kernel IJO, cari Image ==="
-          ls -lh out/arch/arm64/boot/ || true
-          find out -name "Image*" -type f 2>/dev/null | head -n 20
+          echo "=== Build DTBS + Image ==="
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image -j1 2>&1 | tail -n 20
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz -j1 2>&1 | tail -n 20
+          make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" dtbs -j1 2>&1 | tail -n 20
           make O=out ARCH=arm64 CC=clang LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- KCFLAGS="-g0 -w -include linux/selinux_state.h" Image.gz-dtb -j1 2>&1 | tail -n 20
+          echo "=== CARI IMAGE ==="
+          find out/arch -name "Image*" -type f 2>/dev/null
+          ls -lh out/arch/arm64/boot/
           IMG=$(find out -name "Image.gz-dtb" | head -n 1)
           [ -z "$IMG" ] && IMG=$(find out -name "Image.gz" | head -n 1)
           [ -z "$IMG" ] && IMG=$(find out -name "Image" -type f | head -n 1)
-          [ -z "$IMG" ] && IMG=$(find out -name "vmlinux" -type f | head -n 1)
           echo "IMG FINAL: $IMG"
           ls -lh $IMG
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
-          if [ -z "$IMG" ]; then echo "ERROR Image not found"; find out -type f | head -n 30; exit 1; fi
+          if [ -z "$IMG" ]; then echo "ERROR Image not found"; exit 1; fi
           cp -v $IMG AnyKernel3/
-          ls -lh AnyKernel3/
           cd AnyKernel3
           zip -r9 ../A57-SUKISU-v3.2.4-1x-JADI-TWRP.zip * -x .git README.md *placeholder
           cd ..
