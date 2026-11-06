@@ -1,29 +1,42 @@
-name: Build A57 FINAL B
+name: Build A57 KernelSU-Next
+
 permissions:
   contents: write
+
 on:
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: lineage-21
           fetch-depth: 0
+
+      - name: Install Toolchain
+        run: |
+          sudo apt update
+          sudo apt install -y bc bison flex libssl-dev libelf-dev gcc-aarch64-linux-gnu
+
       - name: Build via a57-build.sh
         run: |
           chmod +x a57-build.sh
           bash a57-build.sh
+
       - name: Upload LOG
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-B
+          name: build-log-KSU-Next
           path: build.log
-      - name: Upload ZIP
+
+      - name: Upload Boot
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-v3.2.4-1x-JADI-TWRP
-          path: A57-*.zip
+          name: A57-KERNELSU-NEXT-WAHYU
+          path: |
+            Image.gz
+            *.img
+            arch/arm64/boot/Image.gz
