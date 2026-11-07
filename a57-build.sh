@@ -1,30 +1,38 @@
 #!/bin/bash
-# Build KernelSU-Next for Oppo A57 - LOS 22.1 - By WAHYU
+# Build KernelSU-Next for Oppo A57 - LOS 22.1 - By WAHYU - FIX V2
+set -x
 
-set -e
-echo "=== Mulai Build KernelSU-Next A57 ===" | tee build.log
+echo "=== Mulai Build KernelSU-Next A57 ==="
 
-# 1. Bersihin patch lama SukiSU 324 yang gagal
-rm -rf KernelSU drivers/kernelsu >> build.log 2>&1 || true
+# 1. Bersihin patch lama
+rm -rf KernelSU drivers/kernelsu
 
-# 2. Tanam KernelSU-Next (yang work di kernel 3.18 A57)
-curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next >> build.log 2>&1
+# 2. Cek defconfig yang bener ada apa aja
+echo "=== LIST DEFCONFIG ==="
+ls arch/arm64/configs/ | grep -i -E "a57|msm8937|oppo"
 
-# 3. Aktifin config
-echo "CONFIG_KPROBES=y" >> arch/arm64/configs/a57_defconfig
-echo "CONFIG_KALLSYMS=y" >> arch/arm64/configs/a57_defconfig
-echo "CONFIG_KALLSYMS_ALL=y" >> arch/arm64/configs/a57_defconfig
-echo "CONFIG_KSU=y" >> arch/arm64/configs/a57_defconfig
+# 3. Tanam KernelSU-Next
+curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
 
-# 4. Build kernel
+# 4. Cari defconfig otomatis
+DEFCONFIG=$(ls arch/arm64/configs/*a57*defconfig arch/arm64/configs/*msm8937*defconfig 2>/dev/null | head -n 1 | xargs -n1 basename)
+echo "DEFCONFIG KETEMU: $DEFCONFIG"
+
+# 5. Aktifin config KSU di defconfig yang ketemu
+echo "CONFIG_KPROBES=y" >> arch/arm64/configs/$DEFCONFIG
+echo "CONFIG_KALLSYMS=y" >> arch/arm64/configs/$DEFCONFIG
+echo "CONFIG_KALLSYMS_ALL=y" >> arch/arm64/configs/$DEFCONFIG
+echo "CONFIG_KSU=y" >> arch/arm64/configs/$DEFCONFIG
+
+# 6. Build kernel - JANGAN disembunyiin ke build.log lagi
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-linux-gnu-
-make a57_defconfig >> build.log 2>&1
-make -j$(nproc) Image.gz dtbs >> build.log 2>&1
+make $DEFCONFIG
+make -j$(nproc) Image.gz dtbs
 
-# 5. Copy hasil biar gampang di-download
+# 7. Copy hasil
 cp arch/arm64/boot/Image.gz ./Image.gz || true
 cp arch/arm64/boot/Image ./Image || true
 
-echo "=== Build selesai! boot.img siap ===" | tee -a build.log
-ls -lh Image.gz Image || true
+echo "=== Build selesai! ==="
+ls -lh Image.gz Image
