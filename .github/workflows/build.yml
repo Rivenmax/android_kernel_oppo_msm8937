@@ -17,7 +17,7 @@ jobs:
       - name: Install Toolchain
         run: |
           sudo apt update
-          sudo apt install -y bc bison flex libssl-dev libelf-dev gcc-aarch64-linux-gnu
+          sudo apt install -y bc bison flex libssl-dev libelf-dev gcc-aarch64-linux-gnu git curl python3
 
       - name: Build via a57-build.sh
         run: |
@@ -28,7 +28,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-KSU-Next
+          name: build-log-KSU-Next-WAHYU
           path: build.log
 
       - name: Upload Boot
@@ -40,3 +40,4 @@ jobs:
             Image.gz
             *.img
             arch/arm64/boot/Image.gz
+            arch/arm64/boot/Image
