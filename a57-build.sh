@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build SukiSU Ultra v3.2.0 buat A57 - FIX KSU NEMPEL - LOS 22.1 - By WAHYU
+# Build SukiSU Ultra v3.2.0 buat A57 - FIX KSU NEMPEL - LOS 22.1 - By Rivenmax
 set -x
 echo "=== Mulai Build SukiSU A57 ===" | tee build.log
 
