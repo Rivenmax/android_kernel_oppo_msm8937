@@ -16,7 +16,7 @@ ls drivers/kernelsu/ | tee -a build.log
 # 4. Defconfig ASLI A57
 DEFCONFIG=msm8937-perf_defconfig
 echo "DEFCONFIG: $DEFCONFIG" | tee -a build.log#!/bin/bash
-# Build SukiSU Ultra v3.2.0 buat A57 - FIX KSU NEMPEL + FIX Bluetooth - LOS 22.1 - By WAHYU
+# Build SukiSU Ultra v3.2.0 buat A57 - FIX KSU NEMPEL + FIX Bluetooth - LOS 22.1 - By Rivenmax
 set -x
 echo "=== Mulai Build SukiSU A57 ===" | tee build.log
 
