@@ -28,16 +28,18 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-KSU-Next-WAHYU
+          name: build-log-SUKISU-WAHYU
           path: build.log
 
       - name: Upload Boot
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-KERNELSU-NEXT-WAHYU
+          name: A57-SUKISU-ULTRA-LOS22.1-WAHYU
           path: |
             Image.gz
-            *.img
+            Image.gz-dtb
+            Image
+            arch/arm64/boot/Image.gz-dtb
             arch/arm64/boot/Image.gz
             arch/arm64/boot/Image
