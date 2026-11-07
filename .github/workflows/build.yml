@@ -28,14 +28,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: build-log-SUKISU-WAHYU
+          name: build-log-SUKISU-Rivenmax
           path: build.log
 
       - name: Upload Boot
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: A57-SUKISU-ULTRA-LOS22.1-WAHYU
+          name: A57-SUKISU-ULTRA-LOS22.1-Rivenmax
           path: |
             Image.gz
             Image.gz-dtb
